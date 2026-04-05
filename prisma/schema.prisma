@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  name           String
+  email          String   @unique
+  passwordHash   String
+  mailingAddress String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  contacts      Contact[]
+  cardOrders    CardOrder[]
+  notifications Notification[]
+}
+
+model Contact {
+  id             String   @id @default(uuid())
+  userId         String
+  name           String
+  relationship   String   // e.g. "Mother", "Friend", "Spouse", "Coworker"
+  tonePreference String   @default("Sentimental") // DECISION: Default tone is Sentimental — most universal
+  photoUrl       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importantDates ImportantDate[]
+  cardOrders     CardOrder[]
+}
+
+model ImportantDate {
+  id        String  @id @default(uuid())
+  contactId String
+  type      String  // "birthday", "anniversary", "graduation", "holiday", "custom"
+  label     String  // Display label, e.g. "Birthday", "Wedding Anniversary", "Mother's Day"
+  month     Int     // 1-12
+  day       Int     // 1-31
+  year      Int?    // Optional — recurring dates don't need a year
+
+  contact       Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  cardOrders    CardOrder[]
+  notifications Notification[]
+}
+
+model CardOrder {
+  id            String   @id @default(uuid())
+  userId        String
+  contactId     String
+  dateId        String
+  cardProductId String   // From the card vendor / mock catalog
+  cardTitle     String
+  cardImageUrl  String
+  cardPrice     Float
+  status        String   @default("pending") // "pending", "ordered", "shipped", "delivered"
+  orderedAt     DateTime @default(now())
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  date    ImportantDate @relation(fields: [dateId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id       String   @id @default(uuid())
+  userId   String
+  dateId   String
+  leadDays Int      // How many days before the event this was sent
+  sentAt   DateTime @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date ImportantDate @relation(fields: [dateId], references: [id], onDelete: Cascade)
+}
