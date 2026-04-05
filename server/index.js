@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const contactRoutes = require('./routes/contacts');
 const dateRoutes = require('./routes/dates');
@@ -12,7 +13,8 @@ const { startNotificationCron } = require('./cron/notifications');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
+// DECISION: Allow same-origin in production (served from Express) and configurable origin for dev
+app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }));
 app.use(express.json());
 
 // Routes
@@ -25,6 +27,14 @@ app.use('/api/dashboard', dashboardRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'CardKeeper API' }));
+
+// DECISION: In production, serve the built React app from Express (single-service deploy)
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(clientDist));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  res.sendFile(path.join(clientDist, 'index.html'));
+});
 
 // Global error handler
 app.use((err, req, res, next) => {

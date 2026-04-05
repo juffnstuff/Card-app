@@ -6,7 +6,8 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && node index.js",
     "client": "cd client && npx vite --host",
-    "build": "cd client && npx vite build",
+    "build": "cd client && npm install && npx vite build && cd .. && npx prisma generate",
+    "start": "npx prisma migrate deploy && node server/index.js",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "node prisma/seed.js",
     "db:studio": "npx prisma studio"
