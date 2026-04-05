@@ -21,6 +21,6 @@ RUN cd client && npx vite build
 COPY server ./server/
 COPY .env.example ./
 
-EXPOSE 3001
+EXPOSE 8080
 
 CMD ["sh", "-c", "npx prisma migrate deploy && node server/index.js"]

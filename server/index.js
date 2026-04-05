@@ -12,7 +12,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const { startNotificationCron } = require('./cron/notifications');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 // DECISION: Allow same-origin in production (served from Express) and configurable origin for dev
 app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }));
