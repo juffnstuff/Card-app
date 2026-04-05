@@ -1,8 +1,14 @@
 try { require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }); } catch {}
 // In production (Railway), env vars are injected — dotenv is only for local dev
+
+process.on('uncaughtException', (err) => { console.error('UNCAUGHT:', err); });
+process.on('unhandledRejection', (err) => { console.error('UNHANDLED:', err); });
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+
+console.log('Loading routes...');
 const authRoutes = require('./routes/auth');
 const contactRoutes = require('./routes/contacts');
 const dateRoutes = require('./routes/dates');
@@ -10,6 +16,7 @@ const cardRoutes = require('./routes/cards');
 const orderRoutes = require('./routes/orders');
 const dashboardRoutes = require('./routes/dashboard');
 const { startNotificationCron } = require('./cron/notifications');
+console.log('Routes loaded.');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -43,7 +50,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
+console.log(`Starting server on port ${PORT}...`);
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`CardKeeper API running on http://localhost:${PORT}`);
+  console.log(`CardKeeper API running on 0.0.0.0:${PORT}`);
   startNotificationCron();
 });

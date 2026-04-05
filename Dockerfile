@@ -23,4 +23,4 @@ COPY .env.example ./
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node server/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy; echo 'Starting Node server...'; node server/index.js 2>&1"]
