@@ -2,6 +2,9 @@
   "name": "cardkeeper",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && node index.js",
@@ -21,9 +24,7 @@
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
-    "nodemailer": "^6.9.16"
-  },
-  "devDependencies": {
+    "nodemailer": "^6.9.16",
     "prisma": "^5.22.0"
   }
 }
