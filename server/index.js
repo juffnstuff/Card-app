@@ -1,4 +1,5 @@
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+try { require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }); } catch {}
+// In production (Railway), env vars are injected — dotenv is only for local dev
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -42,7 +43,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`CardKeeper API running on http://localhost:${PORT}`);
   startNotificationCron();
 });
