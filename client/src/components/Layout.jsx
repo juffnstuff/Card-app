@@ -1,12 +1,13 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, Users, CreditCard, Package, User, LogOut, Mail } from 'lucide-react';
+import { Home, Users, Package, User, LogOut, Mail, Crown } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/cards', icon: Mail, label: 'Browse Cards' },
   { to: '/orders', icon: Package, label: 'Orders' },
+  { to: '/pricing', icon: Crown, label: 'Pricing' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
 
@@ -66,7 +67,7 @@ export default function Layout() {
       {/* Mobile nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-cream-dark z-50">
         <div className="flex justify-around py-2">
-          {navItems.slice(0, 4).map(({ to, icon: Icon, label }) => (
+          {navItems.slice(0, 5).map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

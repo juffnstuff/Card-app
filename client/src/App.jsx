@@ -9,6 +9,7 @@ import ContactDetailPage from './pages/ContactDetailPage';
 import CardSearchPage from './pages/CardSearchPage';
 import OrdersPage from './pages/OrdersPage';
 import ProfilePage from './pages/ProfilePage';
+import PricingPage from './pages/PricingPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="cards" element={<CardSearchPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="pricing" element={<PricingPage />} />
       </Route>
     </Routes>
   );

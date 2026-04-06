@@ -42,4 +42,9 @@ export const api = {
 
   // Dashboard
   getDashboard: () => request('/dashboard'),
+
+  // Subscription
+  getSubscription: () => request('/subscription'),
+  createCheckout: (interval) => request('/subscription/checkout', { method: 'POST', body: JSON.stringify({ interval }) }),
+  createPortal: () => request('/subscription/portal', { method: 'POST' }),
 };

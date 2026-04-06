@@ -8,13 +8,17 @@ datasource db {
 }
 
 model User {
-  id             String   @id @default(uuid())
-  name           String
-  email          String   @unique
-  passwordHash   String
-  mailingAddress String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  name                  String
+  email                 String   @unique
+  passwordHash          String
+  mailingAddress        String?
+  plan                  String   @default("free") // "free" or "plus"
+  stripeCustomerId      String?  @unique
+  stripeSubscriptionId  String?
+  planExpiresAt         DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   contacts      Contact[]
   cardOrders    CardOrder[]

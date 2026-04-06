@@ -28,7 +28,7 @@ router.post('/register', async (req, res, next) => {
     const token = signToken(user.id);
     res.status(201).json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, mailingAddress: user.mailingAddress },
+      user: { id: user.id, name: user.name, email: user.email, mailingAddress: user.mailingAddress, plan: user.plan || 'free', planExpiresAt: user.planExpiresAt },
     });
   } catch (err) {
     next(err);
@@ -57,7 +57,7 @@ router.post('/login', async (req, res, next) => {
     const token = signToken(user.id);
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, mailingAddress: user.mailingAddress },
+      user: { id: user.id, name: user.name, email: user.email, mailingAddress: user.mailingAddress, plan: user.plan || 'free', planExpiresAt: user.planExpiresAt },
     });
   } catch (err) {
     next(err);
@@ -69,7 +69,7 @@ router.get('/me', authenticate, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, name: true, email: true, mailingAddress: true },
+      select: { id: true, name: true, email: true, mailingAddress: true, plan: true, planExpiresAt: true },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ user });
@@ -85,7 +85,7 @@ router.put('/profile', authenticate, async (req, res, next) => {
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { name, mailingAddress },
-      select: { id: true, name: true, email: true, mailingAddress: true },
+      select: { id: true, name: true, email: true, mailingAddress: true, plan: true, planExpiresAt: true },
     });
     res.json({ user });
   } catch (err) {

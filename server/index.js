@@ -15,6 +15,8 @@ const dateRoutes = require('./routes/dates');
 const cardRoutes = require('./routes/cards');
 const orderRoutes = require('./routes/orders');
 const dashboardRoutes = require('./routes/dashboard');
+const subscriptionRoutes = require('./routes/subscription');
+const webhookRoutes = require('./routes/webhook');
 const { startNotificationCron } = require('./cron/notifications');
 console.log('Routes loaded.');
 
@@ -23,6 +25,10 @@ const PORT = process.env.PORT || 8080;
 
 // DECISION: Allow same-origin in production (served from Express) and configurable origin for dev
 app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }));
+
+// Stripe webhook needs raw body — mount before express.json()
+app.use('/api/webhook', express.raw({ type: 'application/json' }), webhookRoutes);
+
 app.use(express.json());
 
 // Routes
@@ -32,6 +38,7 @@ app.use('/api/dates', dateRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'CardKeeper API' }));

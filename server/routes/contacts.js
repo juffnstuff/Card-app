@@ -44,6 +44,20 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Name and relationship are required' });
     }
 
+    // Enforce contact limit for free-tier users
+    const { PLANS } = require('./subscription');
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } });
+    const planInfo = PLANS[user.plan] || PLANS.free;
+    if (planInfo.contactLimit !== Infinity) {
+      const count = await prisma.contact.count({ where: { userId: req.userId } });
+      if (count >= planInfo.contactLimit) {
+        return res.status(403).json({
+          error: `Free plan allows up to ${planInfo.contactLimit} contacts. Upgrade to Plus for unlimited.`,
+          code: 'CONTACT_LIMIT',
+        });
+      }
+    }
+
     const contact = await prisma.contact.create({
       data: {
         userId: req.userId,

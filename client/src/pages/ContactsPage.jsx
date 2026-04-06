@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { Plus, Search, UserCircle, ChevronRight } from 'lucide-react';
+import { Plus, Search, UserCircle, ChevronRight, Crown } from 'lucide-react';
 
 const TONE_COLORS = {
   Funny: 'bg-amber-100 text-amber-800',
@@ -15,13 +16,17 @@ const RELATIONSHIPS = ['Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandp
 const TONES = ['Funny', 'Sentimental', 'Religious', 'Kids', 'Edgy/Adult Humor'];
 
 export default function ContactsPage() {
+  const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [limitHit, setLimitHit] = useState(false);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', relationship: 'Friend', tonePreference: 'Sentimental' });
   const [saving, setSaving] = useState(false);
+
+  const isFree = user?.plan !== 'plus';
 
   const load = () => {
     api.getContacts()
@@ -41,6 +46,9 @@ export default function ContactsPage() {
       setShowForm(false);
       load();
     } catch (err) {
+      if (err.message?.includes('Upgrade to Plus') || err.message?.includes('CONTACT_LIMIT')) {
+        setLimitHit(true);
+      }
       setError(err.message);
     } finally {
       setSaving(false);
@@ -70,6 +78,23 @@ export default function ContactsPage() {
 
       {error && (
         <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">{error}</div>
+      )}
+
+      {/* Upgrade prompt when hitting contact limit */}
+      {limitHit && isFree && (
+        <div className="bg-warmth/5 border border-warmth/30 rounded-2xl p-5 flex items-center gap-4">
+          <Crown size={24} className="text-warmth flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium text-charcoal">You've reached the free plan limit (3 contacts)</p>
+            <p className="text-sm text-charcoal-light">Upgrade to Plus for unlimited contacts and 14-day reminders.</p>
+          </div>
+          <Link
+            to="/pricing"
+            className="flex-shrink-0 px-4 py-2 bg-warmth hover:bg-warmth-dark text-white rounded-lg font-medium transition-colors"
+          >
+            Upgrade
+          </Link>
+        </div>
       )}
 
       {/* New Contact Form */}
