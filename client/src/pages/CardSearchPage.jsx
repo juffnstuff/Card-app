@@ -29,6 +29,33 @@ const CARD_COLORS = {
   custom: 'from-purple-200 to-pink-200',
 };
 
+function CardImage({ card }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (!card.imageUrl || imgError) {
+    // Gradient fallback with title overlay
+    return (
+      <div className={`h-52 bg-gradient-to-br ${CARD_COLORS[card.category] || CARD_COLORS.custom} flex items-center justify-center`}>
+        <div className="bg-white/80 rounded-xl p-4 text-center max-w-[80%]">
+          <p className="font-serif text-lg font-bold text-charcoal leading-tight">{card.title}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`h-52 bg-gradient-to-br ${CARD_COLORS[card.category] || CARD_COLORS.custom} flex items-center justify-center p-3`}>
+      <img
+        src={card.imageUrl}
+        alt={card.title}
+        className="max-h-full max-w-full object-contain rounded-lg shadow-sm"
+        onError={() => setImgError(true)}
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
 export default function CardSearchPage() {
   const [searchParams] = useSearchParams();
   const [cards, setCards] = useState([]);
@@ -125,14 +152,11 @@ export default function CardSearchPage() {
               key={card.id}
               className="bg-white rounded-2xl border border-cream-dark overflow-hidden hover:shadow-md transition-shadow"
             >
-              {/* Card image — gradient placeholder with title overlay */}
-              <div className={`h-48 bg-gradient-to-br ${CARD_COLORS[card.category] || CARD_COLORS.custom} flex items-center justify-center`}>
-                <div className="bg-white/80 rounded-xl p-4 text-center max-w-[80%]">
-                  <p className="font-serif text-lg font-bold text-charcoal leading-tight">{card.title}</p>
-                </div>
-              </div>
+              {/* Card image — Amazon product image with gradient fallback */}
+              <CardImage card={card} />
 
               <div className="p-4 space-y-3">
+                <h3 className="font-serif font-bold text-charcoal leading-tight">{card.title}</h3>
                 <p className="text-sm text-charcoal-light">{card.description}</p>
 
                 <div className="flex items-center justify-between">
@@ -140,7 +164,7 @@ export default function CardSearchPage() {
                     <span className="text-lg font-bold text-charcoal">${card.price.toFixed(2)}</span>
                     <span className="text-xs text-charcoal-light px-2 py-0.5 bg-cream rounded-full">{card.tone}</span>
                   </div>
-                  <span className="text-xs text-charcoal-light">on Amazon</span>
+                  <span className="text-xs text-charcoal-light">{card.vendor}</span>
                 </div>
 
                 {clickedCards.has(card.id) ? (
