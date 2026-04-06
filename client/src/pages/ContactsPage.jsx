@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { Plus, Search, UserCircle, ChevronRight, Crown } from 'lucide-react';
+import { Plus, Search, UserCircle, ChevronRight, Crown, Upload } from 'lucide-react';
 
 const TONE_COLORS = {
   Funny: 'bg-amber-100 text-amber-800',
@@ -66,14 +66,22 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="font-serif text-2xl font-bold text-charcoal">Contacts</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-warmth hover:bg-warmth-dark text-white rounded-lg font-medium transition-colors"
-        >
-          <Plus size={18} /> Add Contact
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/import"
+            className="flex items-center gap-2 px-4 py-2 border border-cream-dark text-charcoal-light hover:bg-cream-dark/50 rounded-lg font-medium transition-colors"
+          >
+            <Upload size={16} /> Import
+          </Link>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-4 py-2 bg-warmth hover:bg-warmth-dark text-white rounded-lg font-medium transition-colors"
+          >
+            <Plus size={18} /> Add Contact
+          </button>
+        </div>
       </div>
 
       {error && (

@@ -43,6 +43,24 @@ export const api = {
   // Dashboard
   getDashboard: () => request('/dashboard'),
 
+  // Import
+  getGoogleImportUrl: () => request('/import/google/url'),
+  getGoogleContacts: (code) => request(`/import/google/callback?code=${encodeURIComponent(code)}`),
+  saveImportedContacts: (contacts) => request('/import/google/save', { method: 'POST', body: JSON.stringify({ contacts }) }),
+  uploadCSV: async (file) => {
+    const token = localStorage.getItem('ck_token');
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/import/csv`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    return data;
+  },
+
   // Subscription
   getSubscription: () => request('/subscription'),
   createCheckout: (interval) => request('/subscription/checkout', { method: 'POST', body: JSON.stringify({ interval }) }),
