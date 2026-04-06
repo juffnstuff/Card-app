@@ -8,9 +8,9 @@ function amazonUrl(asin) {
   return `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
 }
 
-// Amazon Associates image widget — officially sanctioned for affiliates
+// Server-side image proxy — fetches and caches Amazon product images
 function amazonImageUrl(asin) {
-  return `https://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&ASIN=${asin}&Format=_SL250_&ID=AsinImage&MarketPlace=US&ServiceVersion=20070822&WS=1&tag=${AFFILIATE_TAG}`;
+  return `/api/card-image/${asin}`;
 }
 
 const CARDS = [
