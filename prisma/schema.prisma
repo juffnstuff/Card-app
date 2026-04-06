@@ -55,10 +55,11 @@ model CardOrder {
   userId        String
   contactId     String
   dateId        String
-  cardProductId String   // From the card vendor / mock catalog
+  cardProductId String   // Amazon ASIN
   cardTitle     String
   cardImageUrl  String
   cardPrice     Float
+  affiliateUrl  String   @default("") // Amazon affiliate link for this card
   status        String   @default("pending") // "pending", "ordered", "shipped", "delivered"
   orderedAt     DateTime @default(now())
 

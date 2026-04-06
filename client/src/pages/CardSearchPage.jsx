@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Search, Filter, ShoppingBag, Check } from 'lucide-react';
+import { Filter, ExternalLink, Check, ShoppingBag } from 'lucide-react';
 
 const CATEGORIES = [
   { value: '', label: 'All Categories' },
@@ -21,8 +21,6 @@ const TONES = [
   { value: 'Edgy/Adult Humor', label: 'Edgy / Adult' },
 ];
 
-// DECISION: Card images are placeholder colored boxes since we're using a mock catalog.
-// In production, these would be real product images from the vendor API.
 const CARD_COLORS = {
   birthday: 'from-pink-200 to-orange-200',
   anniversary: 'from-rose-200 to-pink-200',
@@ -33,13 +31,11 @@ const CARD_COLORS = {
 
 export default function CardSearchPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [tone, setTone] = useState(searchParams.get('tone') || '');
-  const [ordering, setOrdering] = useState(null);
-  const [orderSuccess, setOrderSuccess] = useState(null);
+  const [clickedCards, setClickedCards] = useState(new Set());
 
   const contactId = searchParams.get('contactId');
   const dateId = searchParams.get('dateId');
@@ -58,30 +54,26 @@ export default function CardSearchPage() {
 
   useEffect(search, [category, tone]);
 
-  const handleOrder = async (card) => {
-    if (!contactId || !dateId) {
-      alert('To order a card, start from an upcoming date on your dashboard or a contact\'s detail page.');
-      return;
-    }
+  const handleBuyOnAmazon = async (card) => {
+    // Open Amazon affiliate link in new tab immediately
+    window.open(card.affiliateUrl, '_blank', 'noopener');
 
-    setOrdering(card.id);
-    try {
-      await api.createOrder({
-        contactId,
-        dateId,
-        cardProductId: card.id,
-        cardTitle: card.title,
-        cardImageUrl: card.imageUrl,
-        cardPrice: card.price,
-      });
-      setOrderSuccess(card.id);
-      setTimeout(() => {
-        navigate('/orders');
-      }, 1500);
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setOrdering(null);
+    // If we have contact/date context, record the order for tracking
+    if (contactId && dateId) {
+      try {
+        await api.createOrder({
+          contactId,
+          dateId,
+          cardProductId: card.asin || card.id,
+          cardTitle: card.title,
+          cardImageUrl: card.imageUrl,
+          cardPrice: card.price,
+          affiliateUrl: card.affiliateUrl,
+        });
+        setClickedCards((prev) => new Set(prev).add(card.id));
+      } catch {
+        // Order tracking failed silently — the Amazon tab is already open
+      }
     }
   };
 
@@ -91,8 +83,8 @@ export default function CardSearchPage() {
         <h1 className="font-serif text-2xl font-bold text-charcoal mb-1">Browse Cards</h1>
         <p className="text-charcoal-light text-sm">
           {contactId
-            ? 'Pick the perfect card — we\'ll ship it to your door so you can handwrite it.'
-            : 'Browse our collection. Select a contact\'s date first to place an order.'}
+            ? "Pick the perfect card — you'll buy it on Amazon and it ships right to you."
+            : 'Browse our collection. Select a contact\'s date first to track your purchase.'}
         </p>
       </div>
 
@@ -133,7 +125,7 @@ export default function CardSearchPage() {
               key={card.id}
               className="bg-white rounded-2xl border border-cream-dark overflow-hidden hover:shadow-md transition-shadow"
             >
-              {/* Placeholder card image */}
+              {/* Card image — gradient placeholder with title overlay */}
               <div className={`h-48 bg-gradient-to-br ${CARD_COLORS[card.category] || CARD_COLORS.custom} flex items-center justify-center`}>
                 <div className="bg-white/80 rounded-xl p-4 text-center max-w-[80%]">
                   <p className="font-serif text-lg font-bold text-charcoal leading-tight">{card.title}</p>
@@ -148,24 +140,21 @@ export default function CardSearchPage() {
                     <span className="text-lg font-bold text-charcoal">${card.price.toFixed(2)}</span>
                     <span className="text-xs text-charcoal-light px-2 py-0.5 bg-cream rounded-full">{card.tone}</span>
                   </div>
+                  <span className="text-xs text-charcoal-light">on Amazon</span>
                 </div>
 
-                {orderSuccess === card.id ? (
+                {clickedCards.has(card.id) ? (
                   <div className="flex items-center justify-center gap-2 py-2.5 bg-sage/10 text-sage-dark rounded-xl font-medium">
-                    <Check size={18} /> Ordered!
+                    <Check size={18} /> Tracked! Finish on Amazon
                   </div>
                 ) : (
                   <button
-                    onClick={() => handleOrder(card)}
-                    disabled={ordering === card.id || !contactId}
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-colors ${
-                      contactId
-                        ? 'bg-warmth hover:bg-warmth-dark text-white'
-                        : 'bg-cream text-charcoal-light cursor-not-allowed'
-                    } disabled:opacity-50`}
+                    onClick={() => handleBuyOnAmazon(card)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-colors bg-warmth hover:bg-warmth-dark text-white"
                   >
                     <ShoppingBag size={16} />
-                    {ordering === card.id ? 'Ordering...' : contactId ? 'Order This Card' : 'Select a date first'}
+                    Buy on Amazon
+                    <ExternalLink size={14} />
                   </button>
                 )}
               </div>
@@ -173,6 +162,11 @@ export default function CardSearchPage() {
           ))}
         </div>
       )}
+
+      {/* Affiliate disclosure */}
+      <p className="text-xs text-charcoal-light/60 text-center pt-4">
+        As an Amazon Associate, CardKeeper earns from qualifying purchases.
+      </p>
     </div>
   );
 }

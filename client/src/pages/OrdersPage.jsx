@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
-import { Package } from 'lucide-react';
+import { Package, ExternalLink } from 'lucide-react';
 
 const STATUS_STYLES = {
   pending: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Pending' },
@@ -60,6 +60,19 @@ export default function OrdersPage() {
                       <span>${order.cardPrice.toFixed(2)}</span>
                       <span>&middot;</span>
                       <span>{new Date(order.orderedAt).toLocaleDateString()}</span>
+                      {order.affiliateUrl && (
+                        <>
+                          <span>&middot;</span>
+                          <a
+                            href={order.affiliateUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-warmth-dark hover:underline"
+                          >
+                            View on Amazon <ExternalLink size={12} />
+                          </a>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

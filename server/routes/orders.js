@@ -22,10 +22,11 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST /api/orders
-// DECISION: Stub checkout — no real payment. Status starts as "pending". Ready for Stripe integration.
+// Records that the user chose a card and clicked through to Amazon via affiliate link.
+// Status starts as "pending" — user completes purchase on Amazon.
 router.post('/', async (req, res, next) => {
   try {
-    const { contactId, dateId, cardProductId, cardTitle, cardImageUrl, cardPrice } = req.body;
+    const { contactId, dateId, cardProductId, cardTitle, cardImageUrl, cardPrice, affiliateUrl } = req.body;
 
     if (!contactId || !dateId || !cardProductId || !cardTitle || !cardPrice) {
       return res.status(400).json({ error: 'Missing required order fields' });
@@ -46,6 +47,7 @@ router.post('/', async (req, res, next) => {
         cardTitle,
         cardImageUrl: cardImageUrl || '',
         cardPrice,
+        affiliateUrl: affiliateUrl || '',
         status: 'pending',
       },
       include: { contact: true, date: true },
