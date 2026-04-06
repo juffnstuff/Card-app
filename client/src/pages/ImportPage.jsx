@@ -20,9 +20,14 @@ export default function ImportPage() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
 
-  // Handle Google OAuth callback
+  // Handle Google OAuth callback (or error)
   const code = searchParams.get('code');
+  const oauthError = searchParams.get('error');
   useEffect(() => {
+    if (oauthError) {
+      setError(`Google authorization failed: ${oauthError}. Please try again.`);
+      return;
+    }
     if (code && step === 'choose') {
       setSource('google');
       setStep('preview');
@@ -30,17 +35,19 @@ export default function ImportPage() {
       api.getGoogleContacts(code)
         .then((data) => {
           setContacts(data.contacts);
-          // Pre-select all contacts with birthdays
           const withBirthdays = new Set();
           data.contacts.forEach((c, i) => {
             if (c.birthday) withBirthdays.add(i);
           });
           setSelected(withBirthdays);
         })
-        .catch((err) => setError(err.message))
+        .catch((err) => {
+          setError(err.message);
+          setStep('choose');
+        })
         .finally(() => setLoading(false));
     }
-  }, [code]);
+  }, [code, oauthError]);
 
   const handleGoogleConnect = async () => {
     setLoading(true);

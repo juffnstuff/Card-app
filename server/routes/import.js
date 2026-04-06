@@ -46,7 +46,19 @@ router.get('/google/callback', async (req, res, next) => {
     const oauth2Client = getGoogleOAuthClient();
     if (!oauth2Client) return res.status(503).json({ error: 'Google OAuth not configured.' });
 
-    const { tokens } = await oauth2Client.getToken(code);
+    console.log('[Google Import] Exchanging code for tokens...');
+    console.log('[Google Import] Redirect URI:', process.env.GOOGLE_REDIRECT_URI);
+
+    let tokens;
+    try {
+      const tokenResponse = await oauth2Client.getToken(code);
+      tokens = tokenResponse.tokens;
+    } catch (tokenErr) {
+      console.error('[Google Import] Token exchange failed:', tokenErr.message);
+      const detail = tokenErr.response?.data?.error_description || tokenErr.message;
+      return res.status(400).json({ error: `Google auth failed: ${detail}` });
+    }
+
     oauth2Client.setCredentials(tokens);
 
     const { google } = require('googleapis');
