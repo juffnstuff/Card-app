@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { Upload, UserPlus, Check, Crown, X, FileText, ChevronLeft } from 'lucide-react';
+import { Upload, UserPlus, Check, X, FileText, ChevronLeft } from 'lucide-react';
 
 const RELATIONSHIPS = ['Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent', 'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Other'];
 
 export default function ImportPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef(null);
@@ -276,12 +274,6 @@ export default function ImportPage() {
                 <UserPlus size={16} />
                 Import {selected.size} Contact{selected.size !== 1 ? 's' : ''}
               </button>
-              {user?.plan !== 'plus' && (
-                <p className="text-xs text-charcoal-light">
-                  Free plan: up to 3 contacts total.
-                  <Link to="/pricing" className="text-warmth-dark hover:underline ml-1">Upgrade</Link>
-                </p>
-              )}
             </div>
           </>
         )}
@@ -307,20 +299,7 @@ export default function ImportPage() {
       <p className="text-charcoal-light">
         {result?.imported} contact{result?.imported !== 1 ? 's' : ''} imported
         {result?.imported > 0 && ' with their birthdays'}.
-        {result?.skipped > 0 && ` ${result.skipped} skipped (plan limit).`}
       </p>
-
-      {result?.skipped > 0 && user?.plan !== 'plus' && (
-        <div className="bg-warmth/5 border border-warmth/30 rounded-2xl p-4 inline-flex items-center gap-3">
-          <Crown size={20} className="text-warmth" />
-          <span className="text-sm text-charcoal">
-            Upgrade to Plus for unlimited contacts.
-          </span>
-          <Link to="/pricing" className="px-3 py-1 bg-warmth text-white rounded-lg text-sm font-medium">
-            Upgrade
-          </Link>
-        </div>
-      )}
 
       <div className="flex items-center justify-center gap-4 pt-4">
         <button
