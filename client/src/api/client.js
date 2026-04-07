@@ -27,6 +27,8 @@ export const api = {
   createContact: (body) => request('/contacts', { method: 'POST', body: JSON.stringify(body) }),
   updateContact: (id, body) => request(`/contacts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteContact: (id) => request(`/contacts/${id}`, { method: 'DELETE' }),
+  linkChild: (parentId, childId) => request(`/contacts/${parentId}/link-child`, { method: 'PUT', body: JSON.stringify({ childId }) }),
+  unlinkChild: (parentId, childId) => request(`/contacts/${parentId}/unlink-child`, { method: 'PUT', body: JSON.stringify({ childId }) }),
 
   // Dates
   createDate: (body) => request('/dates', { method: 'POST', body: JSON.stringify(body) }),
@@ -35,6 +37,7 @@ export const api = {
 
   // Cards
   searchCards: (params) => request(`/cards/search?${new URLSearchParams(params)}`),
+  getRecommendations: (body) => request('/cards/recommend', { method: 'POST', body: JSON.stringify(body) }),
 
   // Orders
   getOrders: () => request('/orders'),

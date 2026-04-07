@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
-import { ArrowLeft, Trash2, Plus, Edit2, Save, X } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Edit2, Save, X, Heart, Users } from 'lucide-react';
 
 const DATE_TYPES = ['birthday', 'anniversary', 'graduation', 'holiday', 'custom'];
 const TONES = ['Funny', 'Sentimental', 'Religious', 'Kids', 'Edgy/Adult Humor'];
@@ -12,6 +12,7 @@ export default function ContactDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [contact, setContact] = useState(null);
+  const [allContacts, setAllContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
@@ -19,18 +20,40 @@ export default function ContactDetailPage() {
   const [showDateForm, setShowDateForm] = useState(false);
   const [dateForm, setDateForm] = useState({ type: 'birthday', label: 'Birthday', month: 1, day: 1, year: '' });
   const [saving, setSaving] = useState(false);
+  const [showChildPicker, setShowChildPicker] = useState(false);
 
   const load = () => {
-    api.getContact(id)
-      .then((data) => {
-        setContact(data.contact);
-        setEditForm({ name: data.contact.name, relationship: data.contact.relationship, tonePreference: data.contact.tonePreference });
+    Promise.all([api.getContact(id), api.getContacts()])
+      .then(([contactData, contactsData]) => {
+        const c = contactData.contact;
+        setContact(c);
+        setAllContacts(contactsData.contacts);
+        setEditForm({
+          name: c.name,
+          relationship: c.relationship,
+          tonePreference: c.tonePreference,
+          isMother: c.isMother,
+          isFather: c.isFather,
+        });
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
   useEffect(load, [id]);
+
+  const linkedSpouse = contact?.linkedSpouse || null;
+  const children = contact?.children || [];
+
+  // Contacts available for spouse linking (exclude self, current children, current spouse)
+  const spouseCandidates = allContacts.filter(
+    (c) => c.id !== id && !children.some((ch) => ch.id === c.id)
+  );
+
+  // Contacts available for child linking (exclude self, current spouse, already-linked children)
+  const childCandidates = allContacts.filter(
+    (c) => c.id !== id && c.id !== linkedSpouse?.id && !children.some((ch) => ch.id === c.id)
+  );
 
   const handleSaveContact = async () => {
     setSaving(true);
@@ -86,6 +109,34 @@ export default function ContactDetailPage() {
     }
   };
 
+  const handleSetSpouse = async (spouseId) => {
+    try {
+      await api.updateContact(id, { spouseId: spouseId || null });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleLinkChild = async (childId) => {
+    try {
+      await api.linkChild(id, childId);
+      setShowChildPicker(false);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleUnlinkChild = async (childId) => {
+    try {
+      await api.unlinkChild(id, childId);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   if (loading) return <div className="text-center py-20 text-charcoal-light">Loading...</div>;
   if (!contact) return <div className="bg-red-50 text-red-700 rounded-xl p-4">Contact not found</div>;
 
@@ -127,11 +178,41 @@ export default function ContactDetailPage() {
                     {TONES.map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </div>
+                <div className="flex flex-wrap gap-3">
+                  <label className="flex items-center gap-1.5 text-sm text-charcoal cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.isMother}
+                      onChange={(e) => setEditForm({ ...editForm, isMother: e.target.checked })}
+                      className="w-4 h-4 rounded border-cream-dark text-warmth focus:ring-warmth/30"
+                    />
+                    Mother
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm text-charcoal cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.isFather}
+                      onChange={(e) => setEditForm({ ...editForm, isFather: e.target.checked })}
+                      className="w-4 h-4 rounded border-cream-dark text-warmth focus:ring-warmth/30"
+                    />
+                    Father
+                  </label>
+                </div>
               </div>
             ) : (
               <div>
                 <h1 className="font-serif text-2xl font-bold text-charcoal">{contact.name}</h1>
                 <p className="text-charcoal-light">{contact.relationship} &middot; {contact.tonePreference}</p>
+                {(contact.isMother || contact.isFather) && (
+                  <div className="flex gap-1.5 mt-1">
+                    {contact.isMother && (
+                      <span className="px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full text-xs font-medium">Mother</span>
+                    )}
+                    {contact.isFather && (
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Father</span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -272,6 +353,91 @@ export default function ContactDetailPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Family */}
+      <div className="bg-white rounded-2xl border border-cream-dark p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Users size={20} className="text-warmth" />
+          <h2 className="font-serif text-lg font-bold text-charcoal">Family</h2>
+        </div>
+
+        {/* Spouse */}
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-charcoal mb-2">Spouse</h3>
+          {linkedSpouse ? (
+            <div className="flex items-center justify-between py-2 px-3 bg-cream/30 rounded-lg">
+              <Link to={`/contacts/${linkedSpouse.id}`} className="flex items-center gap-2 text-warmth-dark hover:underline font-medium">
+                <Heart size={14} /> {linkedSpouse.name}
+              </Link>
+              <button
+                onClick={() => handleSetSpouse(null)}
+                className="text-xs text-red-400 hover:text-red-600 transition-colors"
+              >
+                Unlink
+              </button>
+            </div>
+          ) : (
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) handleSetSpouse(e.target.value); }}
+              className="w-full px-3 py-2 border border-cream-dark rounded-lg bg-cream/50 text-sm"
+            >
+              <option value="">Select a spouse...</option>
+              {spouseCandidates.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Children */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-charcoal">Children</h3>
+            <button
+              onClick={() => setShowChildPicker(!showChildPicker)}
+              className="flex items-center gap-1 text-xs text-warmth-dark hover:text-warmth font-medium"
+            >
+              <Plus size={14} /> Link Child
+            </button>
+          </div>
+
+          {showChildPicker && (
+            <div className="mb-3">
+              <select
+                value=""
+                onChange={(e) => { if (e.target.value) handleLinkChild(e.target.value); }}
+                className="w-full px-3 py-2 border border-cream-dark rounded-lg bg-cream/50 text-sm"
+              >
+                <option value="">Select a contact to link as child...</option>
+                {childCandidates.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {children.length === 0 ? (
+            <p className="text-charcoal-light text-sm py-2 text-center">No children linked.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {children.map((child) => (
+                <div key={child.id} className="flex items-center justify-between py-2 px-3 bg-cream/30 rounded-lg">
+                  <Link to={`/contacts/${child.id}`} className="text-warmth-dark hover:underline font-medium text-sm">
+                    {child.name}
+                  </Link>
+                  <button
+                    onClick={() => handleUnlinkChild(child.id)}
+                    className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                  >
+                    Unlink
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

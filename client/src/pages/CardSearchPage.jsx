@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Filter, ExternalLink, Check, ShoppingBag } from 'lucide-react';
+import { Filter, ExternalLink, Check, ShoppingBag, Sparkles } from 'lucide-react';
 
 const CATEGORIES = [
   { value: '', label: 'All Categories' },
@@ -33,7 +33,6 @@ function CardImage({ card }) {
   const [imgError, setImgError] = useState(false);
 
   if (!card.imageUrl || imgError) {
-    // Gradient fallback with title overlay
     return (
       <div className={`h-52 bg-gradient-to-br ${CARD_COLORS[card.category] || CARD_COLORS.custom} flex items-center justify-center`}>
         <div className="bg-white/80 rounded-xl p-4 text-center max-w-[80%]">
@@ -56,9 +55,60 @@ function CardImage({ card }) {
   );
 }
 
+function CardGrid({ cards, clickedCards, onBuy, highlight }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {cards.map((card) => (
+        <div
+          key={card.id}
+          className={`bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-shadow ${
+            highlight ? 'border-warmth/40 ring-1 ring-warmth/20' : 'border-cream-dark'
+          }`}
+        >
+          <CardImage card={card} />
+          <div className="p-4 space-y-3">
+            <h3 className="font-serif font-bold text-charcoal leading-tight">{card.title}</h3>
+            <p className="text-sm text-charcoal-light">{card.description}</p>
+            {card.reason && (
+              <div className="flex items-start gap-1.5 bg-warmth/5 rounded-lg p-2">
+                <Sparkles size={14} className="text-warmth mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-charcoal-light italic">{card.reason}</p>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-charcoal">${card.price.toFixed(2)}</span>
+                <span className="text-xs text-charcoal-light px-2 py-0.5 bg-cream rounded-full">{card.tone}</span>
+              </div>
+              <span className="text-xs text-charcoal-light">{card.vendor}</span>
+            </div>
+            {clickedCards.has(card.id) ? (
+              <div className="flex items-center justify-center gap-2 py-2.5 bg-sage/10 text-sage-dark rounded-xl font-medium">
+                <Check size={18} /> Tracked! Finish on Amazon
+              </div>
+            ) : (
+              <button
+                onClick={() => onBuy(card)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-colors bg-warmth hover:bg-warmth-dark text-white"
+              >
+                <ShoppingBag size={16} />
+                Buy on Amazon
+                <ExternalLink size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function CardSearchPage() {
   const [searchParams] = useSearchParams();
   const [cards, setCards] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [aiPowered, setAiPowered] = useState(false);
+  const [recLoading, setRecLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [tone, setTone] = useState(searchParams.get('tone') || '');
@@ -67,6 +117,29 @@ export default function CardSearchPage() {
   const contactId = searchParams.get('contactId');
   const dateId = searchParams.get('dateId');
 
+  // Fetch AI recommendations when coming from a contact's date
+  useEffect(() => {
+    if (!contactId) return;
+
+    setRecLoading(true);
+    api.getRecommendations({
+      contactId,
+      dateId,
+      occasion: category || undefined,
+      tone: tone || undefined,
+    })
+      .then((data) => {
+        setRecommendations(data.recommendations || []);
+        setAiPowered(data.aiPowered || false);
+      })
+      .catch(() => {
+        setRecommendations([]);
+        setAiPowered(false);
+      })
+      .finally(() => setRecLoading(false));
+  }, [contactId, dateId]);
+
+  // Browse all cards
   const search = () => {
     setLoading(true);
     const params = {};
@@ -82,10 +155,8 @@ export default function CardSearchPage() {
   useEffect(search, [category, tone]);
 
   const handleBuyOnAmazon = async (card) => {
-    // Open Amazon affiliate link in new tab immediately
     window.open(card.affiliateUrl, '_blank', 'noopener');
 
-    // If we have contact/date context, record the order for tracking
     if (contactId && dateId) {
       try {
         await api.createOrder({
@@ -104,6 +175,10 @@ export default function CardSearchPage() {
     }
   };
 
+  // Filter out recommended cards from the browse grid to avoid duplicates
+  const recIds = new Set(recommendations.map((r) => r.id));
+  const browseCards = cards.filter((c) => !recIds.has(c.id));
+
   return (
     <div className="space-y-6">
       <div>
@@ -114,6 +189,37 @@ export default function CardSearchPage() {
             : 'Browse our collection. Select a contact\'s date first to track your purchase.'}
         </p>
       </div>
+
+      {/* AI Recommendations */}
+      {contactId && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} className="text-warmth" />
+            <h2 className="font-serif text-lg font-bold text-charcoal">
+              {aiPowered ? 'AI Picks for You' : 'Suggested Cards'}
+            </h2>
+            {aiPowered && (
+              <span className="px-2 py-0.5 bg-warmth/10 text-warmth-dark rounded-full text-xs font-medium">
+                Powered by AI
+              </span>
+            )}
+          </div>
+          {recLoading ? (
+            <div className="text-center py-8 text-charcoal-light">Finding the perfect cards...</div>
+          ) : recommendations.length > 0 ? (
+            <CardGrid cards={recommendations} clickedCards={clickedCards} onBuy={handleBuyOnAmazon} highlight />
+          ) : null}
+        </div>
+      )}
+
+      {/* Divider when both sections present */}
+      {contactId && recommendations.length > 0 && (
+        <div className="flex items-center gap-3 pt-2">
+          <div className="flex-1 border-t border-cream-dark" />
+          <span className="text-sm text-charcoal-light font-medium">Or browse all cards</span>
+          <div className="flex-1 border-t border-cream-dark" />
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -133,58 +239,20 @@ export default function CardSearchPage() {
           {TONES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
         <span className="text-sm text-charcoal-light ml-auto">
-          {cards.length} card{cards.length !== 1 ? 's' : ''} found
+          {browseCards.length} card{browseCards.length !== 1 ? 's' : ''} found
         </span>
       </div>
 
       {/* Card Grid */}
       {loading ? (
         <div className="text-center py-16 text-charcoal-light">Loading cards...</div>
-      ) : cards.length === 0 ? (
+      ) : browseCards.length === 0 ? (
         <div className="bg-white rounded-2xl border border-cream-dark p-8 text-center">
           <div className="text-4xl mb-3">🔍</div>
           <p className="text-charcoal-light">No cards match your filters. Try adjusting your selection.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {cards.map((card) => (
-            <div
-              key={card.id}
-              className="bg-white rounded-2xl border border-cream-dark overflow-hidden hover:shadow-md transition-shadow"
-            >
-              {/* Card image — Amazon product image with gradient fallback */}
-              <CardImage card={card} />
-
-              <div className="p-4 space-y-3">
-                <h3 className="font-serif font-bold text-charcoal leading-tight">{card.title}</h3>
-                <p className="text-sm text-charcoal-light">{card.description}</p>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-charcoal">${card.price.toFixed(2)}</span>
-                    <span className="text-xs text-charcoal-light px-2 py-0.5 bg-cream rounded-full">{card.tone}</span>
-                  </div>
-                  <span className="text-xs text-charcoal-light">{card.vendor}</span>
-                </div>
-
-                {clickedCards.has(card.id) ? (
-                  <div className="flex items-center justify-center gap-2 py-2.5 bg-sage/10 text-sage-dark rounded-xl font-medium">
-                    <Check size={18} /> Tracked! Finish on Amazon
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleBuyOnAmazon(card)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-colors bg-warmth hover:bg-warmth-dark text-white"
-                  >
-                    <ShoppingBag size={16} />
-                    Buy on Amazon
-                    <ExternalLink size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <CardGrid cards={browseCards} clickedCards={clickedCards} onBuy={handleBuyOnAmazon} />
       )}
 
       {/* Affiliate disclosure */}

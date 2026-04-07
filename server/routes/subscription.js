@@ -11,7 +11,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
   : null;
 
 const PLANS = {
-  free: { name: 'Free', contactLimit: 3, price: 0 },
+  free: { name: 'Free', contactLimit: Infinity, price: 0 },
   plus: { name: 'Plus', contactLimit: Infinity, price: 3.99 },
 };
 
