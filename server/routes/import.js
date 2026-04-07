@@ -196,14 +196,37 @@ router.post('/csv/save', async (req, res, next) => {
 function guessRelationship(relation) {
   if (!relation) return 'Friend';
   const r = relation.toLowerCase();
+  // In-laws (check before parent/sibling to avoid false matches)
+  if (r.includes('mother-in-law') || r.includes('mother in law')) return 'Mother-in-Law';
+  if (r.includes('father-in-law') || r.includes('father in law')) return 'Father-in-Law';
+  if (r.includes('brother-in-law') || r.includes('brother in law')) return 'Brother-in-Law';
+  if (r.includes('sister-in-law') || r.includes('sister in law')) return 'Sister-in-Law';
+  if (r.includes('son-in-law') || r.includes('son in law')) return 'Son-in-Law';
+  if (r.includes('daughter-in-law') || r.includes('daughter in law')) return 'Daughter-in-Law';
+  // Step-family
+  if (r.includes('stepmother') || r.includes('stepfather') || r.includes('step-parent') || r.includes('stepparent')) return 'Stepparent';
+  if (r.includes('stepson') || r.includes('stepdaughter') || r.includes('step-child') || r.includes('stepchild')) return 'Stepchild';
+  // Immediate family
   if (r.includes('mother') || r.includes('mom')) return 'Mother';
   if (r.includes('father') || r.includes('dad')) return 'Father';
   if (r.includes('spouse') || r.includes('wife') || r.includes('husband') || r.includes('partner')) return 'Spouse';
   if (r.includes('brother') || r.includes('sister') || r.includes('sibling')) return 'Sibling';
   if (r.includes('son') || r.includes('daughter') || r.includes('child')) return 'Child';
   if (r.includes('grand')) return 'Grandparent';
+  // Extended family
+  if (r.includes('cousin')) return 'Cousin';
+  if (r.includes('aunt') || r.includes('auntie')) return 'Aunt';
+  if (r.includes('uncle')) return 'Uncle';
+  if (r.includes('niece')) return 'Niece';
+  if (r.includes('nephew')) return 'Nephew';
+  if (r.includes('godparent') || r.includes('godmother') || r.includes('godfather')) return 'Godparent';
+  if (r.includes('godchild') || r.includes('godson') || r.includes('goddaughter')) return 'Godchild';
+  // Non-family
+  if (r.includes('boss') || r.includes('manager')) return 'Boss';
+  if (r.includes('mentor')) return 'Mentor';
   if (r.includes('friend') || r.includes('best')) return 'Friend';
   if (r.includes('coworker') || r.includes('colleague') || r.includes('work')) return 'Coworker';
+  if (r.includes('neighbor')) return 'Neighbor';
   return 'Friend';
 }
 

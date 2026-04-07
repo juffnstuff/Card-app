@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Upload, UserPlus, Check, X, FileText, ChevronLeft } from 'lucide-react';
 
-const RELATIONSHIPS = ['Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent', 'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Other'];
+const RELATIONSHIPS = ['Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent', 'Mother-in-Law', 'Father-in-Law', 'Brother-in-Law', 'Sister-in-Law', 'Son-in-Law', 'Daughter-in-Law', 'Cousin', 'Aunt', 'Uncle', 'Niece', 'Nephew', 'Godparent', 'Godchild', 'Stepparent', 'Stepchild', 'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Boss', 'Mentor', 'Other'];
 
 export default function ImportPage() {
   const navigate = useNavigate();
