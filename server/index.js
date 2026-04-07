@@ -47,6 +47,11 @@ app.use('/api/card-image', cardImageRoutes);
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'CardKeeper API' }));
 
+// Public config (safe keys only — no secrets)
+app.get('/api/config', (req, res) => res.json({
+  googleMapsKey: process.env.GOOGLE_MAPS_API_KEY || '',
+}));
+
 // DECISION: In production, serve the built React app from Express (single-service deploy)
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 app.use(express.static(clientDist));

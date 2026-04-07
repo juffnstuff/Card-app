@@ -13,6 +13,8 @@ model User {
   email                 String   @unique
   passwordHash          String
   mailingAddress        String?
+  phone                 String?
+  birthday              String?  // stored as MM/DD or MM/DD/YYYY
   plan                  String   @default("free") // "free" or "plus"
   stripeCustomerId      String?  @unique
   stripeSubscriptionId  String?

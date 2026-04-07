@@ -68,4 +68,7 @@ export const api = {
   getSubscription: () => request('/subscription'),
   createCheckout: (interval) => request('/subscription/checkout', { method: 'POST', body: JSON.stringify({ interval }) }),
   createPortal: () => request('/subscription/portal', { method: 'POST' }),
+
+  // Config
+  getConfig: () => request('/config'),
 };
