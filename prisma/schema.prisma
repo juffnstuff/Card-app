@@ -34,6 +34,7 @@ model Contact {
   relationship   String   // e.g. "Mother", "Friend", "Spouse", "Coworker"
   tonePreference String   @default("Sentimental")
   photoUrl       String?
+  mailingAddress String?  // Recipient's mailing address (for mail-by date estimates)
   isMother       Boolean  @default(false) // Is this person a mother? (for Mother's Day cards)
   isFather       Boolean  @default(false) // Is this person a father? (for Father's Day cards)
   spouseId       String?  @unique         // Linked spouse contact
@@ -65,21 +66,24 @@ model ImportantDate {
 }
 
 model CardOrder {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   userId        String
   contactId     String
   dateId        String
-  cardProductId String   // Amazon ASIN
+  cardProductId String    // Amazon ASIN
   cardTitle     String
   cardImageUrl  String
   cardPrice     Float
-  affiliateUrl  String   @default("") // Amazon affiliate link for this card
-  status        String   @default("pending") // "pending", "ordered", "shipped", "delivered"
-  orderedAt     DateTime @default(now())
+  affiliateUrl  String    @default("") // Amazon affiliate link for this card
+  status        String    @default("pending") // "pending", "ordered", "shipped", "delivered", "cancelled"
+  confirmedAt   DateTime? // When user confirmed they bought the card on Amazon
+  mailByDate    DateTime? // Computed: when to mail so it arrives on the event date
+  orderedAt     DateTime  @default(now())
 
-  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  contact Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  date    ImportantDate @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact       Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  date          ImportantDate  @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 }
 
 model Notification {
@@ -87,8 +91,11 @@ model Notification {
   userId   String
   dateId   String
   leadDays Int      // How many days before the event this was sent
+  type     String   @default("reminder") // "reminder", "purchase_nudge", "mail_by", "yearly_suggestion"
+  orderId  String?  // Links to specific order (for purchase/mail-by notifications)
   sentAt   DateTime @default(now())
 
-  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date ImportantDate @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date  ImportantDate @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  order CardOrder?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
 }

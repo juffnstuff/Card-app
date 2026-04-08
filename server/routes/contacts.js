@@ -55,7 +55,7 @@ router.get('/:id', async (req, res, next) => {
 // POST /api/contacts
 router.post('/', async (req, res, next) => {
   try {
-    const { name, relationship, tonePreference, photoUrl, isMother, isFather } = req.body;
+    const { name, relationship, tonePreference, photoUrl, mailingAddress, isMother, isFather } = req.body;
 
     if (!name || !relationship) {
       return res.status(400).json({ error: 'Name and relationship are required' });
@@ -68,6 +68,7 @@ router.post('/', async (req, res, next) => {
         relationship,
         tonePreference: tonePreference || 'Sentimental',
         photoUrl,
+        mailingAddress,
         isMother: isMother || false,
         isFather: isFather || false,
       },
@@ -88,13 +89,14 @@ router.put('/:id', async (req, res, next) => {
     });
     if (!existing) return res.status(404).json({ error: 'Contact not found' });
 
-    const { name, relationship, tonePreference, photoUrl, isMother, isFather, spouseId, parentId } = req.body;
+    const { name, relationship, tonePreference, photoUrl, mailingAddress, isMother, isFather, spouseId, parentId } = req.body;
 
     const data = {};
     if (name !== undefined) data.name = name;
     if (relationship !== undefined) data.relationship = relationship;
     if (tonePreference !== undefined) data.tonePreference = tonePreference;
     if (photoUrl !== undefined) data.photoUrl = photoUrl;
+    if (mailingAddress !== undefined) data.mailingAddress = mailingAddress;
     if (isMother !== undefined) data.isMother = isMother;
     if (isFather !== undefined) data.isFather = isFather;
     if (parentId !== undefined) data.parentId = parentId;

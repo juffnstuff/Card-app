@@ -32,6 +32,7 @@ export default function ContactDetailPage() {
           name: c.name,
           relationship: c.relationship,
           tonePreference: c.tonePreference,
+          mailingAddress: c.mailingAddress || '',
           isMother: c.isMother,
           isFather: c.isFather,
         });
@@ -198,6 +199,15 @@ export default function ContactDetailPage() {
                     Father
                   </label>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-charcoal mb-1">Mailing Address</label>
+                  <input
+                    value={editForm.mailingAddress}
+                    onChange={(e) => setEditForm({ ...editForm, mailingAddress: e.target.value })}
+                    className="w-full text-sm px-2 py-1.5 border border-cream-dark rounded-lg"
+                    placeholder="Their mailing address (for mail-by estimates)"
+                  />
+                </div>
               </div>
             ) : (
               <div>
@@ -212,6 +222,9 @@ export default function ContactDetailPage() {
                       <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Father</span>
                     )}
                   </div>
+                )}
+                {contact.mailingAddress && (
+                  <p className="text-sm text-charcoal-light mt-1">📍 {contact.mailingAddress}</p>
                 )}
               </div>
             )}

@@ -40,6 +40,31 @@ router.get('/', async (req, res, next) => {
 
     upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
 
+    // Look up active orders for these upcoming dates
+    const upcomingDateIds = upcoming.map((u) => u.id);
+    const ordersForDates = await prisma.cardOrder.findMany({
+      where: {
+        userId: req.userId,
+        dateId: { in: upcomingDateIds },
+        status: { not: 'cancelled' },
+      },
+      select: { id: true, dateId: true, status: true, cardTitle: true, mailByDate: true },
+      orderBy: { orderedAt: 'desc' },
+    });
+
+    // Build lookup: dateId → most recent non-cancelled order
+    const ordersByDateId = {};
+    for (const o of ordersForDates) {
+      if (!ordersByDateId[o.dateId]) {
+        ordersByDateId[o.dateId] = o;
+      }
+    }
+
+    // Attach order info to each upcoming date
+    for (const item of upcoming) {
+      item.order = ordersByDateId[item.id] || null;
+    }
+
     // Recent orders
     const recentOrders = await prisma.cardOrder.findMany({
       where: { userId: req.userId },
@@ -51,21 +76,20 @@ router.get('/', async (req, res, next) => {
     // Stats
     const totalContacts = contacts.length;
     const totalDates = contacts.reduce((sum, c) => sum + c.importantDates.length, 0);
-    const pendingOrders = await prisma.cardOrder.count({
-      where: { userId: req.userId, status: 'pending' },
+    const needsAction = await prisma.cardOrder.count({
+      where: { userId: req.userId, status: { in: ['pending', 'ordered'] } },
     });
 
     res.json({
       upcoming,
       recentOrders,
-      stats: { totalContacts, totalDates, pendingOrders },
+      stats: { totalContacts, totalDates, needsAction },
     });
   } catch (err) {
     next(err);
   }
 });
 
-// DECISION: Simple day-of-year math for "days until". Doesn't account for leap years perfectly — good enough for lead-time reminders.
 function getDaysUntil(currentMonth, currentDay, targetMonth, targetDay) {
   const now = new Date();
   const year = now.getFullYear();
