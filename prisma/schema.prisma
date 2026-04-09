@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String   @id @default(uuid())
+  name                  String
+  email                 String   @unique
+  passwordHash          String
+  mailingAddress        String?
+  phone                 String?
+  birthday              String?  // stored as MM/DD or MM/DD/YYYY
+  plan                  String   @default("free") // "free" or "plus"
+  stripeCustomerId      String?  @unique
+  stripeSubscriptionId  String?
+  planExpiresAt         DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  contacts      Contact[]
+  cardOrders    CardOrder[]
+  notifications Notification[]
+}
+
+model Contact {
+  id             String   @id @default(uuid())
+  userId         String
+  name           String
+  relationship   String   // e.g. "Mother", "Friend", "Spouse", "Coworker"
+  tonePreference String   @default("Sentimental")
+  photoUrl       String?
+  mailingAddress String?  // Recipient's mailing address (for mail-by date estimates)
+  isMother       Boolean  @default(false) // Is this person a mother? (for Mother's Day cards)
+  isFather       Boolean  @default(false) // Is this person a father? (for Father's Day cards)
+  spouseId       String?  @unique         // Linked spouse contact
+  parentId       String?                  // Parent contact (for child→parent link)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spouse         Contact?       @relation("SpouseLink", fields: [spouseId], references: [id], onDelete: SetNull)
+  spouseOf       Contact?       @relation("SpouseLink")
+  parent         Contact?       @relation("ParentChild", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Contact[]      @relation("ParentChild")
+  importantDates ImportantDate[]
+  cardOrders     CardOrder[]
+}
+
+model ImportantDate {
+  id        String  @id @default(uuid())
+  contactId String
+  type      String  // "birthday", "anniversary", "graduation", "holiday", "custom"
+  label     String  // Display label, e.g. "Birthday", "Wedding Anniversary", "Mother's Day"
+  month     Int     // 1-12
+  day       Int     // 1-31
+  year      Int?    // Optional — recurring dates don't need a year
+
+  contact       Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  cardOrders    CardOrder[]
+  notifications Notification[]
+}
+
+model CardOrder {
+  id            String    @id @default(uuid())
+  userId        String
+  contactId     String
+  dateId        String
+  cardProductId String    // Amazon ASIN
+  cardTitle     String
+  cardImageUrl  String
+  cardPrice     Float
+  affiliateUrl  String    @default("") // Amazon affiliate link for this card
+  status        String    @default("pending") // "pending", "ordered", "shipped", "delivered", "cancelled"
+  confirmedAt   DateTime? // When user confirmed they bought the card on Amazon
+  mailByDate    DateTime? // Computed: when to mail so it arrives on the event date
+  orderedAt     DateTime  @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact       Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  date          ImportantDate  @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+}
+
+model Notification {
+  id       String   @id @default(uuid())
+  userId   String
+  dateId   String
+  leadDays Int      // How many days before the event this was sent
+  type     String   @default("reminder") // "reminder", "purchase_nudge", "mail_by", "yearly_suggestion"
+  orderId  String?  // Links to specific order (for purchase/mail-by notifications)
+  sentAt   DateTime @default(now())
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date  ImportantDate @relation(fields: [dateId], references: [id], onDelete: Cascade)
+  order CardOrder?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+}
