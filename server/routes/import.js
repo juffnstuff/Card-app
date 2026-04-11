@@ -209,7 +209,9 @@ function guessRelationship(relation) {
   // Immediate family
   if (r.includes('mother') || r.includes('mom')) return 'Mother';
   if (r.includes('father') || r.includes('dad')) return 'Father';
-  if (r.includes('spouse') || r.includes('wife') || r.includes('husband') || r.includes('partner')) return 'Spouse';
+  if (r.includes('wife')) return 'Wife';
+  if (r.includes('husband')) return 'Husband';
+  if (r.includes('spouse') || r.includes('partner')) return 'Spouse';
   if (r.includes('brother') || r.includes('sister') || r.includes('sibling')) return 'Sibling';
   if (r.includes('son') || r.includes('daughter') || r.includes('child')) return 'Child';
   if (r.includes('grand')) return 'Grandparent';

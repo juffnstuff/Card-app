@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
-import { Filter, ExternalLink, Check, ShoppingBag, Sparkles } from 'lucide-react';
+import { Filter, ExternalLink, Check, ShoppingBag, Sparkles, Flower2 } from 'lucide-react';
 
 const CATEGORIES = [
   { value: '', label: 'All Categories' },
@@ -114,8 +114,34 @@ export default function CardSearchPage() {
   const [tone, setTone] = useState(searchParams.get('tone') || '');
   const [clickedCards, setClickedCards] = useState(new Set());
 
+  const [flowerRecs, setFlowerRecs] = useState([]);
+  const [showFlowerBanner, setShowFlowerBanner] = useState(false);
+
   const contactId = searchParams.get('contactId');
   const dateId = searchParams.get('dateId');
+
+  // Fetch flower suggestions for Valentine's Day dates
+  useEffect(() => {
+    if (!contactId) return;
+    const catParam = searchParams.get('category');
+    // Show flower banner for holiday category (Valentine's) or when category suggests romance
+    if (catParam === 'holiday' || catParam === 'anniversary') {
+      api.getFlowerRecommendations({
+        contactName: '',
+        relationship: '',
+        occasion: catParam,
+        eventLabel: catParam === 'holiday' ? "Valentine's Day" : 'Anniversary',
+        contactAddress: '',
+      })
+        .then((data) => {
+          if (data.recommendations?.length > 0) {
+            setFlowerRecs(data.recommendations.slice(0, 3));
+            setShowFlowerBanner(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [contactId]);
 
   // Fetch AI recommendations when coming from a contact's date
   useEffect(() => {
@@ -189,6 +215,33 @@ export default function CardSearchPage() {
             : 'Browse our collection. Select a contact\'s date first to track your purchase.'}
         </p>
       </div>
+
+      {/* Flower Banner for Valentine's/Anniversary */}
+      {showFlowerBanner && flowerRecs.length > 0 && (
+        <div className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-2xl p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Flower2 size={20} className="text-pink-500" />
+            <h2 className="font-serif text-lg font-bold text-charcoal">Make it extra special — add flowers!</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {flowerRecs.map((f) => (
+              <div key={f.id} className="bg-white rounded-xl p-3 border border-pink-100">
+                <p className="font-medium text-sm text-charcoal">{f.title}</p>
+                <p className="text-xs text-charcoal-light mt-0.5">{f.vendor} &middot; ${f.price.toFixed(2)}</p>
+                {f.reason && <p className="text-xs text-pink-600 mt-1 italic">{f.reason}</p>}
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 bg-pink-500 text-white rounded-lg text-xs font-medium hover:bg-pink-600 transition-colors"
+                >
+                  Order Flowers <ExternalLink size={10} />
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* AI Recommendations */}
       {contactId && (

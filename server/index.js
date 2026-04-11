@@ -19,6 +19,7 @@ const subscriptionRoutes = require('./routes/subscription');
 const webhookRoutes = require('./routes/webhook');
 const importRoutes = require('./routes/import');
 const cardImageRoutes = require('./routes/cardImage');
+const flowerRoutes = require('./routes/flowers');
 const { startNotificationCron } = require('./cron/notifications');
 console.log('Routes loaded.');
 
@@ -43,6 +44,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/card-image', cardImageRoutes);
+app.use('/api/flowers', flowerRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'CardKeeper API' }));
