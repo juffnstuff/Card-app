@@ -1,10 +1,9 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const multer = require('multer');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 router.use(authenticate);
@@ -107,8 +106,8 @@ router.get('/google/callback', async (req, res, next) => {
   }
 });
 
-// POST /api/import/google/save — save selected Google contacts
-router.post('/google/save', async (req, res, next) => {
+// Shared save handler for both Google and CSV imports
+async function saveImportedContacts(req, res, next) {
   try {
     const { contacts } = req.body; // array of { name, relationship, tonePreference, birthday }
     if (!Array.isArray(contacts) || contacts.length === 0) {
@@ -166,7 +165,10 @@ router.post('/google/save', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
+
+// POST /api/import/google/save — save selected Google contacts
+router.post('/google/save', saveImportedContacts);
 
 // ─── CSV Import ──────────────────────────────────────────────
 
@@ -184,12 +186,8 @@ router.post('/csv', upload.single('file'), async (req, res, next) => {
   }
 });
 
-// POST /api/import/csv/save — save selected CSV contacts (reuses same logic)
-router.post('/csv/save', async (req, res, next) => {
-  // Delegate to the same save logic
-  req.url = '/google/save';
-  router.handle(req, res, next);
-});
+// POST /api/import/csv/save — save selected CSV contacts (reuses same save logic)
+router.post('/csv/save', saveImportedContacts);
 
 // ─── Helpers ─────────────────────────────────────────────────
 

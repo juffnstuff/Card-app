@@ -1,9 +1,12 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+
+const VALID_RELATIONSHIPS = ['Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent', 'Mother-in-Law', 'Father-in-Law', 'Brother-in-Law', 'Sister-in-Law', 'Son-in-Law', 'Daughter-in-Law', 'Cousin', 'Aunt', 'Uncle', 'Niece', 'Nephew', 'Godparent', 'Godchild', 'Stepparent', 'Stepchild', 'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Boss', 'Mentor', 'Other'];
+const VALID_TONES = ['Funny', 'Sentimental', 'Religious', 'Kids', 'Edgy/Adult Humor'];
+const MAX_STRING_LENGTH = 500;
 
 router.use(authenticate);
 
@@ -61,14 +64,27 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Name and relationship are required' });
     }
 
+    if (typeof name !== 'string' || name.length > MAX_STRING_LENGTH) {
+      return res.status(400).json({ error: 'Name is too long' });
+    }
+    if (!VALID_RELATIONSHIPS.includes(relationship)) {
+      return res.status(400).json({ error: 'Invalid relationship value' });
+    }
+    if (tonePreference && !VALID_TONES.includes(tonePreference)) {
+      return res.status(400).json({ error: 'Invalid tone preference' });
+    }
+    if (mailingAddress && (typeof mailingAddress !== 'string' || mailingAddress.length > MAX_STRING_LENGTH)) {
+      return res.status(400).json({ error: 'Mailing address is too long' });
+    }
+
     const contact = await prisma.contact.create({
       data: {
         userId: req.userId,
-        name,
+        name: name.trim(),
         relationship,
         tonePreference: tonePreference || 'Sentimental',
-        photoUrl,
-        mailingAddress,
+        photoUrl: photoUrl || null,
+        mailingAddress: mailingAddress || null,
         isMother: isMother || false,
         isFather: isFather || false,
       },
@@ -101,55 +117,56 @@ router.put('/:id', async (req, res, next) => {
     if (isFather !== undefined) data.isFather = isFather;
     if (parentId !== undefined) data.parentId = parentId;
 
-    // Handle spouse linking with bidirectional sync
+    // Handle spouse linking with bidirectional sync (transactional)
     if (spouseId !== undefined) {
       const currentSpouseId = existing.spouseId || existing.spouseOf?.id || null;
 
       if (spouseId !== currentSpouseId) {
-        // Clear old spouse link (both directions)
-        if (existing.spouseId) {
-          await prisma.contact.update({
-            where: { id: existing.spouseId },
-            data: { spouseId: null },
-          });
-        }
-        if (existing.spouseOf) {
-          await prisma.contact.update({
-            where: { id: existing.spouseOf.id },
-            data: { spouseId: null },
-          });
-        }
-        // Clear this contact's spouseId first
-        await prisma.contact.update({
-          where: { id: req.params.id },
-          data: { spouseId: null },
-        });
-
-        // Set new spouse link
-        if (spouseId) {
-          // Verify the target contact belongs to the same user
-          const target = await prisma.contact.findFirst({
-            where: { id: spouseId, userId: req.userId },
-          });
-          if (!target) return res.status(400).json({ error: 'Spouse contact not found' });
-
-          // Clear target's existing spouse links
-          if (target.spouseId) {
-            await prisma.contact.update({
-              where: { id: target.spouseId },
+        await prisma.$transaction(async (tx) => {
+          // Clear old spouse link (both directions)
+          if (existing.spouseId) {
+            await tx.contact.update({
+              where: { id: existing.spouseId },
               data: { spouseId: null },
             });
           }
-          await prisma.contact.update({
-            where: { id: spouseId },
+          if (existing.spouseOf) {
+            await tx.contact.update({
+              where: { id: existing.spouseOf.id },
+              data: { spouseId: null },
+            });
+          }
+          // Clear this contact's spouseId first
+          await tx.contact.update({
+            where: { id: req.params.id },
             data: { spouseId: null },
           });
 
-          // Set bidirectional: this contact points to spouse
-          data.spouseId = spouseId;
-        } else {
-          data.spouseId = null;
-        }
+          // Set new spouse link
+          if (spouseId) {
+            // Verify the target contact belongs to the same user
+            const target = await tx.contact.findFirst({
+              where: { id: spouseId, userId: req.userId },
+            });
+            if (!target) throw Object.assign(new Error('Spouse contact not found'), { status: 400 });
+
+            // Clear target's existing spouse links
+            if (target.spouseId) {
+              await tx.contact.update({
+                where: { id: target.spouseId },
+                data: { spouseId: null },
+              });
+            }
+            await tx.contact.update({
+              where: { id: spouseId },
+              data: { spouseId: null },
+            });
+
+            data.spouseId = spouseId;
+          } else {
+            data.spouseId = null;
+          }
+        });
       }
     }
 

@@ -1,17 +1,37 @@
 const API_BASE = '/api';
+const REQUEST_TIMEOUT_MS = 30000;
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('ck_token');
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await res.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+
+    // Auto-logout on 401 (expired or invalid token)
+    if (res.status === 401) {
+      localStorage.removeItem('ck_token');
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
+    }
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed (${res.status})`);
+    }
+    return data;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return data;
 }
 
 export const api = {

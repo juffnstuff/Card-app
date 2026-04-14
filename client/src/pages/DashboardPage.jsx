@@ -85,6 +85,12 @@ export default function DashboardPage() {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="bg-red-50 text-red-700 rounded-xl p-4 border border-red-200">Failed to load dashboard data.</div>
+    );
+  }
+
   const { upcoming, recentOrders, stats } = data;
 
   return (

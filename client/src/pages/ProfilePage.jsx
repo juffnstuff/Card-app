@@ -24,7 +24,7 @@ export default function ProfilePage() {
           window.__GOOGLE_MAPS_KEY = data.googleMapsKey;
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error('[Config] Failed to load:', err.message));
   }, []);
 
   const handleSubmit = async (e) => {

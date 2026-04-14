@@ -1,10 +1,8 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const { authenticate } = require('../middleware/auth');
 const { searchCards, CARD_CATALOG } = require('../services/cardCatalog');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 

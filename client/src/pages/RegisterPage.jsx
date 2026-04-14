@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { MIN_PASSWORD_LENGTH } from '../constants';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', mailingAddress: '' });
@@ -14,8 +15,8 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (form.password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       return;
     }
     setLoading(true);
@@ -76,7 +77,7 @@ export default function RegisterPage() {
               value={form.password}
               onChange={update('password')}
               className="w-full px-4 py-2.5 border border-cream-dark rounded-lg bg-cream/50 focus:outline-none focus:ring-2 focus:ring-warmth/30 focus:border-warmth transition-colors"
-              placeholder="At least 6 characters"
+              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
               required
             />
           </div>

@@ -1,8 +1,7 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // POST /api/webhook/stripe
 // This route receives raw body (configured in index.js before express.json())
@@ -16,17 +15,17 @@ router.post('/stripe', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+  if (!webhookSecret) {
+    console.error('[Stripe] STRIPE_WEBHOOK_SECRET is not set — rejecting webhook');
+    return res.status(500).send('Webhook secret not configured');
+  }
+
   let event;
   try {
-    if (webhookSecret) {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    } else {
-      // In development without webhook secret, parse body directly
-      event = JSON.parse(req.body.toString());
-    }
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return res.status(400).send('Webhook signature verification failed');
   }
 
   try {
@@ -35,19 +34,25 @@ router.post('/stripe', async (req, res) => {
         const session = event.data.object;
         const userId = session.metadata?.userId;
         const subscriptionId = session.subscription;
-        if (userId && subscriptionId) {
-          // Fetch subscription to get period end
-          const sub = await stripe.subscriptions.retrieve(subscriptionId);
-          await prisma.user.update({
-            where: { id: userId },
-            data: {
-              plan: 'plus',
-              stripeSubscriptionId: subscriptionId,
-              planExpiresAt: new Date(sub.current_period_end * 1000),
-            },
-          });
-          console.log(`[Stripe] User ${userId} upgraded to Plus`);
+        if (!userId || !subscriptionId) break;
+
+        // Verify user exists before updating
+        const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+        if (!existingUser) {
+          console.error(`[Stripe] Checkout completed for unknown userId: ${userId}`);
+          break;
         }
+
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            plan: 'plus',
+            stripeSubscriptionId: subscriptionId,
+            planExpiresAt: new Date(sub.current_period_end * 1000),
+          },
+        });
+        console.log(`[Stripe] User ${userId} upgraded to Plus`);
         break;
       }
 
@@ -90,11 +95,11 @@ router.post('/stripe', async (req, res) => {
       }
 
       default:
-        // Unhandled event type
         break;
     }
   } catch (err) {
     console.error('[Stripe webhook] Error processing event:', err);
+    return res.status(500).json({ error: 'Webhook processing failed' });
   }
 
   res.json({ received: true });

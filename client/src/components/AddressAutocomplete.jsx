@@ -39,7 +39,7 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
     const apiKey = window.__GOOGLE_MAPS_KEY;
     if (!apiKey) return;
 
-    loadGooglePlaces(apiKey).then(() => setReady(true)).catch(() => {});
+    loadGooglePlaces(apiKey).then(() => setReady(true)).catch((err) => console.error('[AddressAutocomplete]', err.message));
   }, []);
 
   useEffect(() => {

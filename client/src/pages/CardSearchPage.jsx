@@ -132,7 +132,8 @@ export default function CardSearchPage() {
         setRecommendations(data.recommendations || []);
         setAiPowered(data.aiPowered || false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[Recommendations] Failed:', err.message);
         setRecommendations([]);
         setAiPowered(false);
       })
@@ -148,14 +149,24 @@ export default function CardSearchPage() {
 
     api.searchCards(params)
       .then((data) => setCards(data.cards))
-      .catch(() => setCards([]))
+      .catch((err) => {
+        console.error('[CardSearch] Failed:', err.message);
+        setCards([]);
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(search, [category, tone]);
 
   const handleBuyOnAmazon = async (card) => {
-    window.open(card.affiliateUrl, '_blank', 'noopener');
+    // Validate URL protocol before opening
+    try {
+      const url = new URL(card.affiliateUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) return;
+      window.open(card.affiliateUrl, '_blank', 'noopener');
+    } catch {
+      return; // Invalid URL
+    }
 
     if (contactId && dateId) {
       try {

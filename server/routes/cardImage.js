@@ -4,9 +4,11 @@ const http = require('http');
 
 const router = express.Router();
 
-// In-memory cache: asin -> { url, fetchedAt }
+// Bounded LRU-style cache: asin -> { url, fetchedAt }
 const imageCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_CACHE_SIZE = 500;
+const MAX_REDIRECTS = 5;
 
 // GET /api/card-image/:asin — proxy Amazon product image
 router.get('/:asin', async (req, res) => {
@@ -39,6 +41,11 @@ router.get('/:asin', async (req, res) => {
 
     // Fetch the actual image
     const imageData = await fetchBinary(imageUrl);
+    // Evict oldest entry if cache is full
+    if (imageCache.size >= MAX_CACHE_SIZE) {
+      const oldestKey = imageCache.keys().next().value;
+      imageCache.delete(oldestKey);
+    }
     imageCache.set(asin, { imageData, fetchedAt: Date.now() });
 
     res.set('Content-Type', 'image/jpeg');
@@ -51,8 +58,9 @@ router.get('/:asin', async (req, res) => {
   }
 });
 
-function fetchPage(url) {
+function fetchPage(url, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+    if (redirectCount >= MAX_REDIRECTS) return reject(new Error('Too many redirects'));
     const get = url.startsWith('https') ? https.get : http.get;
     get(url, {
       headers: {
@@ -62,9 +70,8 @@ function fetchPage(url) {
       },
       timeout: 10000,
     }, (resp) => {
-      // Follow redirects
       if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
-        return fetchPage(resp.headers.location).then(resolve).catch(reject);
+        return fetchPage(resp.headers.location, redirectCount + 1).then(resolve).catch(reject);
       }
       let data = '';
       resp.on('data', (chunk) => data += chunk);
@@ -73,8 +80,9 @@ function fetchPage(url) {
   });
 }
 
-function fetchBinary(url) {
+function fetchBinary(url, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+    if (redirectCount >= MAX_REDIRECTS) return reject(new Error('Too many redirects'));
     const get = url.startsWith('https') ? https.get : http.get;
     get(url, {
       headers: {
@@ -83,7 +91,7 @@ function fetchBinary(url) {
       timeout: 10000,
     }, (resp) => {
       if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
-        return fetchBinary(resp.headers.location).then(resolve).catch(reject);
+        return fetchBinary(resp.headers.location, redirectCount + 1).then(resolve).catch(reject);
       }
       const chunks = [];
       resp.on('data', (chunk) => chunks.push(chunk));

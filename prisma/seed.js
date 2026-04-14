@@ -4,6 +4,11 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('ERROR: Refusing to seed in production. Set NODE_ENV to something else to seed.');
+    process.exit(1);
+  }
+
   // Clean existing data
   await prisma.notification.deleteMany();
   await prisma.cardOrder.deleteMany();

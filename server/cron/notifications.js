@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const {
   sendReminderEmail,
   sendPurchaseNudgeEmail,
@@ -7,12 +7,12 @@ const {
   sendYearlySuggestionEmail,
 } = require('../services/email');
 
-const prisma = new PrismaClient();
-
 // Lead times for event reminders (days before the event)
 const LEAD_DAYS = [14, 7];
 
 // ─── 1. Existing: Event reminders (14/7 days before) ───────
+
+const BATCH_SIZE = 500;
 
 async function checkUpcomingDates() {
   console.log('[Cron] Checking for upcoming dates...');
@@ -22,9 +22,19 @@ async function checkUpcomingDates() {
   const currentYear = now.getFullYear();
 
   try {
-    const allDates = await prisma.importantDate.findMany({
-      include: { contact: { include: { user: true } } },
-    });
+    // Paginate to avoid loading all dates into memory at once
+    let skip = 0;
+    let allDates = [];
+    while (true) {
+      const batch = await prisma.importantDate.findMany({
+        include: { contact: { include: { user: true } } },
+        skip,
+        take: BATCH_SIZE,
+      });
+      allDates = allDates.concat(batch);
+      if (batch.length < BATCH_SIZE) break;
+      skip += BATCH_SIZE;
+    }
 
     for (const d of allDates) {
       let targetDate = new Date(currentYear, d.month - 1, d.day);
@@ -221,11 +231,20 @@ async function checkYearlySuggestions() {
     const currentMonth = now.getMonth() + 1;
     const currentDay = now.getDate();
 
-    const allDates = await prisma.importantDate.findMany({
-      include: { contact: { include: { user: true } } },
-    });
+    let skip2 = 0;
+    let allDatesForSuggestions = [];
+    while (true) {
+      const batch = await prisma.importantDate.findMany({
+        include: { contact: { include: { user: true } } },
+        skip: skip2,
+        take: BATCH_SIZE,
+      });
+      allDatesForSuggestions = allDatesForSuggestions.concat(batch);
+      if (batch.length < BATCH_SIZE) break;
+      skip2 += BATCH_SIZE;
+    }
 
-    for (const d of allDates) {
+    for (const d of allDatesForSuggestions) {
       let targetDate = new Date(currentYear, d.month - 1, d.day);
       const today = new Date(currentYear, currentMonth - 1, currentDay);
       if (targetDate < today) {

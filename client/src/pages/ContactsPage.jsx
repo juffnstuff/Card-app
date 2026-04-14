@@ -2,17 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Plus, Search, UserCircle, ChevronRight, Upload } from 'lucide-react';
-
-const TONE_COLORS = {
-  Funny: 'bg-amber-100 text-amber-800',
-  Sentimental: 'bg-pink-100 text-pink-800',
-  Religious: 'bg-indigo-100 text-indigo-800',
-  Kids: 'bg-green-100 text-green-800',
-  'Edgy/Adult Humor': 'bg-red-100 text-red-800',
-};
-
-const RELATIONSHIPS = ['Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent', 'Mother-in-Law', 'Father-in-Law', 'Brother-in-Law', 'Sister-in-Law', 'Son-in-Law', 'Daughter-in-Law', 'Cousin', 'Aunt', 'Uncle', 'Niece', 'Nephew', 'Godparent', 'Godchild', 'Stepparent', 'Stepchild', 'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Boss', 'Mentor', 'Other'];
-const TONES = ['Funny', 'Sentimental', 'Religious', 'Kids', 'Edgy/Adult Humor'];
+import { RELATIONSHIPS, TONES, TONE_COLORS } from '../constants';
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState([]);

@@ -6,7 +6,9 @@ process.on('unhandledRejection', (err) => { console.error('UNHANDLED:', err); })
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
+const prisma = require('./lib/prisma');
 
 console.log('Loading routes...');
 const authRoutes = require('./routes/auth');
@@ -25,13 +27,20 @@ console.log('Routes loaded.');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// DECISION: Allow same-origin in production (served from Express) and configurable origin for dev
-app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }));
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // managed by frontend framework
+  crossOriginEmbedderPolicy: false,
+}));
+
+// CORS — fail closed: require explicit FRONTEND_URL in production
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+app.use(cors({ origin: allowedOrigin, credentials: true }));
 
 // Stripe webhook needs raw body — mount before express.json()
 app.use('/api/webhook', express.raw({ type: 'application/json' }), webhookRoutes);
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -44,8 +53,15 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/card-image', cardImageRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'CardKeeper API' }));
+// Health check — verify database connectivity
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', service: 'CardKeeper API' });
+  } catch {
+    res.status(503).json({ status: 'degraded', service: 'CardKeeper API', error: 'Database unreachable' });
+  }
+});
 
 // Public config (safe keys only — no secrets)
 app.get('/api/config', (req, res) => res.json({
@@ -60,10 +76,12 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
-// Global error handler
+// Global error handler — never leak internal details to clients
 app.use((err, req, res, next) => {
-  console.error('[Error]', err.message);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  console.error('[Error]', err);
+  const status = err.status || 500;
+  const message = status >= 500 ? 'Internal server error' : (err.message || 'Request failed');
+  res.status(status).json({ error: message });
 });
 
 console.log(`Starting server on port ${PORT}...`);

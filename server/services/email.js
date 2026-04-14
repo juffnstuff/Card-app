@@ -3,6 +3,12 @@ const nodemailer = require('nodemailer');
 // DECISION: Email is fully stubbed. In dev, logs to console. In production, swap with SendGrid or real SMTP.
 // To use SendGrid: set SMTP_HOST=smtp.sendgrid.net, SMTP_USER=apikey, SMTP_PASS=<your-sendgrid-key>
 
+// Escape HTML to prevent injection in email templates
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 let transporter = null;
 
 function getTransporter() {
@@ -48,11 +54,13 @@ async function sendEmail(to, subject, html) {
 // ─── Existing: Event reminder (14/7 days before) ───────────
 
 async function sendReminderEmail({ to, contactName, eventLabel, daysUntil, dashboardUrl }) {
+  const safeName = escapeHtml(contactName);
+  const safeLabel = escapeHtml(eventLabel);
   const subject = `${contactName}'s ${eventLabel} is in ${daysUntil} days — time to pick a card!`;
   const html = emailWrapper(`
     <h1 style="color: #2D2926; font-size: 24px; margin-bottom: 8px;">Don't forget! 💌</h1>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
-      <strong>${contactName}'s ${eventLabel}</strong> is coming up in <strong>${daysUntil} days</strong>.
+      <strong>${safeName}'s ${safeLabel}</strong> is coming up in <strong>${daysUntil} days</strong>.
     </p>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
       Head to CardKeeper to browse and order the perfect card — we'll ship it right to your door so you can add your personal touch.
@@ -65,11 +73,14 @@ async function sendReminderEmail({ to, contactName, eventLabel, daysUntil, dashb
 // ─── New: Purchase nudge (did you buy the card?) ───────────
 
 async function sendPurchaseNudgeEmail({ to, contactName, eventLabel, cardTitle, confirmUrl }) {
+  const safeName = escapeHtml(contactName);
+  const safeLabel = escapeHtml(eventLabel);
+  const safeTitle = escapeHtml(cardTitle);
   const subject = `Did you buy "${cardTitle}" for ${contactName}?`;
   const html = emailWrapper(`
     <h1 style="color: #2D2926; font-size: 24px; margin-bottom: 8px;">Quick check-in 🛒</h1>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
-      You selected <strong>"${cardTitle}"</strong> for <strong>${contactName}'s ${eventLabel}</strong> a few days ago. Did you complete the purchase on Amazon?
+      You selected <strong>"${safeTitle}"</strong> for <strong>${safeName}'s ${safeLabel}</strong> a few days ago. Did you complete the purchase on Amazon?
     </p>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
       Once you confirm, we'll calculate exactly when you need to mail it so it arrives right on time.
@@ -82,6 +93,9 @@ async function sendPurchaseNudgeEmail({ to, contactName, eventLabel, cardTitle, 
 // ─── New: Mail-by reminder ─────────────────────────────────
 
 async function sendMailByEmail({ to, contactName, eventLabel, cardTitle, mailByDate, daysUntilMailBy }) {
+  const safeName = escapeHtml(contactName);
+  const safeLabel = escapeHtml(eventLabel);
+  const safeTitle = escapeHtml(cardTitle);
   const formatted = new Date(mailByDate).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -92,7 +106,7 @@ async function sendMailByEmail({ to, contactName, eventLabel, cardTitle, mailByD
   const html = emailWrapper(`
     <h1 style="color: #2D2926; font-size: 24px; margin-bottom: 8px;">${urgency} 📬</h1>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
-      To make sure <strong>"${cardTitle}"</strong> arrives in time for <strong>${contactName}'s ${eventLabel}</strong>, you need to mail it by <strong>${formatted}</strong> (${daysUntilMailBy} day${daysUntilMailBy !== 1 ? 's' : ''} from now).
+      To make sure <strong>"${safeTitle}"</strong> arrives in time for <strong>${safeName}'s ${safeLabel}</strong>, you need to mail it by <strong>${formatted}</strong> (${daysUntilMailBy} day${daysUntilMailBy !== 1 ? 's' : ''} from now).
     </p>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
       Add your personal touch, stamp it, and drop it in the mail! 💌
@@ -104,11 +118,14 @@ async function sendMailByEmail({ to, contactName, eventLabel, cardTitle, mailByD
 // ─── New: Yearly suggestion ────────────────────────────────
 
 async function sendYearlySuggestionEmail({ to, contactName, eventLabel, lastCardTitle, browseUrl }) {
+  const safeName = escapeHtml(contactName);
+  const safeLabel = escapeHtml(eventLabel);
+  const safeTitle = escapeHtml(lastCardTitle);
   const subject = `${contactName}'s ${eventLabel} is coming up — time to pick this year's card!`;
   const html = emailWrapper(`
     <h1 style="color: #2D2926; font-size: 24px; margin-bottom: 8px;">It's that time again! 🎉</h1>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
-      <strong>${contactName}'s ${eventLabel}</strong> is about a month away. Last year you sent them <strong>"${lastCardTitle}"</strong>.
+      <strong>${safeName}'s ${safeLabel}</strong> is about a month away. Last year you sent them <strong>"${safeTitle}"</strong>.
     </p>
     <p style="color: #4A4543; font-size: 16px; line-height: 1.6;">
       Ready to pick something new this year?

@@ -49,6 +49,8 @@ model Contact {
   children       Contact[]      @relation("ParentChild")
   importantDates ImportantDate[]
   cardOrders     CardOrder[]
+
+  @@index([userId])
 }
 
 model ImportantDate {
@@ -63,6 +65,8 @@ model ImportantDate {
   contact       Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
   cardOrders    CardOrder[]
   notifications Notification[]
+
+  @@index([contactId])
 }
 
 model CardOrder {
@@ -73,7 +77,7 @@ model CardOrder {
   cardProductId String    // Amazon ASIN
   cardTitle     String
   cardImageUrl  String
-  cardPrice     Float
+  cardPrice     Decimal
   affiliateUrl  String    @default("") // Amazon affiliate link for this card
   status        String    @default("pending") // "pending", "ordered", "shipped", "delivered", "cancelled"
   confirmedAt   DateTime? // When user confirmed they bought the card on Amazon
@@ -84,6 +88,11 @@ model CardOrder {
   contact       Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
   date          ImportantDate  @relation(fields: [dateId], references: [id], onDelete: Cascade)
   notifications Notification[]
+
+  @@index([userId])
+  @@index([contactId])
+  @@index([dateId])
+  @@index([userId, status])
 }
 
 model Notification {
@@ -98,4 +107,8 @@ model Notification {
   user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   date  ImportantDate @relation(fields: [dateId], references: [id], onDelete: Cascade)
   order CardOrder?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([dateId])
+  @@index([userId, dateId, type, leadDays])
 }

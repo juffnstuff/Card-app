@@ -1,11 +1,12 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
+
+const VALID_DATE_TYPES = ['birthday', 'anniversary', 'graduation', 'holiday', 'custom'];
 
 // POST /api/dates
 router.post('/', async (req, res, next) => {
@@ -16,6 +17,18 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'contactId, type, label, month, and day are required' });
     }
 
+    if (!VALID_DATE_TYPES.includes(type)) {
+      return res.status(400).json({ error: 'Invalid date type' });
+    }
+    const m = parseInt(month);
+    const d = parseInt(day);
+    if (m < 1 || m > 12 || d < 1 || d > 31) {
+      return res.status(400).json({ error: 'Invalid month or day value' });
+    }
+    if (typeof label !== 'string' || label.length > 200) {
+      return res.status(400).json({ error: 'Label is required and must be under 200 characters' });
+    }
+
     // Verify the contact belongs to this user
     const contact = await prisma.contact.findFirst({
       where: { id: contactId, userId: req.userId },
@@ -23,7 +36,7 @@ router.post('/', async (req, res, next) => {
     if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
     const date = await prisma.importantDate.create({
-      data: { contactId, type, label, month, day, year: year || null },
+      data: { contactId, type, label: label.trim(), month: m, day: d, year: year ? parseInt(year) : null },
     });
     res.status(201).json({ date });
   } catch (err) {
