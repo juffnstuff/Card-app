@@ -1,11 +1,12 @@
 // Shared constants — single source of truth for values used across pages
 
 export const RELATIONSHIPS = [
-  'Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent',
-  'Mother-in-Law', 'Father-in-Law', 'Brother-in-Law', 'Sister-in-Law',
-  'Son-in-Law', 'Daughter-in-Law', 'Cousin', 'Aunt', 'Uncle', 'Niece',
-  'Nephew', 'Godparent', 'Godchild', 'Stepparent', 'Stepchild',
-  'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Boss', 'Mentor', 'Other',
+  'Myself', 'Wife', 'Husband', 'Mother', 'Father', 'Spouse', 'Sibling',
+  'Child', 'Grandparent', 'Mother-in-Law', 'Father-in-Law',
+  'Brother-in-Law', 'Sister-in-Law', 'Son-in-Law', 'Daughter-in-Law',
+  'Cousin', 'Aunt', 'Uncle', 'Niece', 'Nephew', 'Godparent', 'Godchild',
+  'Stepparent', 'Stepchild', 'Best Friend', 'Friend', 'Coworker',
+  'Neighbor', 'Boss', 'Mentor', 'Other',
 ];
 
 export const TONES = ['Funny', 'Sentimental', 'Religious', 'Kids', 'Edgy/Adult Humor'];

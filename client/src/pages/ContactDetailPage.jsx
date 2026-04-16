@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
-import { ArrowLeft, Trash2, Plus, Edit2, Save, X, Heart, Users } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Edit2, Save, X, Heart, Users, Flower2, MapPin, ExternalLink, Sparkles } from 'lucide-react';
 import { DATE_TYPES, TONES, RELATIONSHIPS, MONTHS } from '../constants';
 
 export default function ContactDetailPage() {
@@ -17,6 +17,12 @@ export default function ContactDetailPage() {
   const [dateForm, setDateForm] = useState({ type: 'birthday', label: 'Birthday', month: 1, day: 1, year: '' });
   const [saving, setSaving] = useState(false);
   const [showChildPicker, setShowChildPicker] = useState(false);
+  const [showCreateSpouse, setShowCreateSpouse] = useState(false);
+  const [showCreateChild, setShowCreateChild] = useState(false);
+  const [newFamilyForm, setNewFamilyForm] = useState({ name: '', relationship: 'Wife', tonePreference: 'Sentimental' });
+  const [flowerRecs, setFlowerRecs] = useState(null);
+  const [flowerLoading, setFlowerLoading] = useState(false);
+  const [flowerDateId, setFlowerDateId] = useState(null);
 
   const load = () => {
     Promise.all([api.getContact(id), api.getContacts()])
@@ -131,6 +137,50 @@ export default function ContactDetailPage() {
       load();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleCreateFamily = async (linkType) => {
+    setSaving(true);
+    try {
+      await api.createFamilyMember(id, {
+        name: newFamilyForm.name,
+        relationship: newFamilyForm.relationship,
+        tonePreference: newFamilyForm.tonePreference,
+        linkType,
+      });
+      setShowCreateSpouse(false);
+      setShowCreateChild(false);
+      setNewFamilyForm({ name: '', relationship: 'Wife', tonePreference: 'Sentimental' });
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGetFlowerRecs = async (dateItem) => {
+    if (flowerDateId === dateItem.id) {
+      setFlowerDateId(null);
+      setFlowerRecs(null);
+      return;
+    }
+    setFlowerDateId(dateItem.id);
+    setFlowerLoading(true);
+    try {
+      const data = await api.getFlowerRecommendations({
+        contactName: contact.name,
+        relationship: contact.relationship,
+        occasion: dateItem.type,
+        eventLabel: dateItem.label,
+        contactAddress: contact.mailingAddress || '',
+      });
+      setFlowerRecs(data);
+    } catch {
+      setFlowerRecs({ recommendations: [], localShop: null });
+    } finally {
+      setFlowerLoading(false);
     }
   };
 
@@ -337,27 +387,109 @@ export default function ContactDetailPage() {
         ) : (
           <div className="space-y-2">
             {contact.importantDates.map((d) => (
-              <div key={d.id} className="flex items-center justify-between py-3 px-4 bg-cream/30 rounded-xl">
-                <div>
-                  <p className="font-medium text-charcoal">{d.label}</p>
-                  <p className="text-sm text-charcoal-light">
-                    {MONTHS[d.month - 1]} {d.day}{d.year ? `, ${d.year}` : ''} &middot; {d.type}
-                  </p>
+              <div key={d.id}>
+                <div className="flex items-center justify-between py-3 px-4 bg-cream/30 rounded-xl">
+                  <div>
+                    <p className="font-medium text-charcoal">{d.label}</p>
+                    <p className="text-sm text-charcoal-light">
+                      {MONTHS[d.month - 1]} {d.day}{d.year ? `, ${d.year}` : ''} &middot; {d.type}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleGetFlowerRecs(d)}
+                      className={`p-1.5 rounded-lg text-sm transition-colors ${
+                        flowerDateId === d.id ? 'bg-pink-100 text-pink-600' : 'text-pink-400 hover:bg-pink-50'
+                      }`}
+                      title="Flower suggestions"
+                    >
+                      <Flower2 size={16} />
+                    </button>
+                    <Link
+                      to={`/cards?contactId=${contact.id}&dateId=${d.id}&category=${d.type}&tone=${contact.tonePreference}`}
+                      className="px-3 py-1 bg-warmth/10 text-warmth-dark rounded-lg text-sm font-medium hover:bg-warmth/20 transition-colors"
+                    >
+                      Send Card
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteDate(d.id)}
+                      className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link
-                    to={`/cards?contactId=${contact.id}&dateId=${d.id}&category=${d.type}&tone=${contact.tonePreference}`}
-                    className="px-3 py-1 bg-warmth/10 text-warmth-dark rounded-lg text-sm font-medium hover:bg-warmth/20 transition-colors"
-                  >
-                    Send Card
-                  </Link>
-                  <button
-                    onClick={() => handleDeleteDate(d.id)}
-                    className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+
+                {/* Flower Recommendations Panel */}
+                {flowerDateId === d.id && (
+                  <div className="mt-2 ml-4 bg-pink-50/50 border border-pink-100 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Flower2 size={16} className="text-pink-500" />
+                      <h4 className="font-serif font-bold text-charcoal text-sm">Flower Suggestions</h4>
+                      {flowerRecs?.aiPowered && (
+                        <span className="px-1.5 py-0.5 bg-pink-100 text-pink-600 rounded-full text-xs font-medium flex items-center gap-1">
+                          <Sparkles size={10} /> AI
+                        </span>
+                      )}
+                    </div>
+
+                    {flowerLoading ? (
+                      <p className="text-sm text-charcoal-light text-center py-3">Finding the perfect flowers...</p>
+                    ) : flowerRecs?.recommendations?.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {flowerRecs.recommendations.map((f) => (
+                            <div key={f.id} className="bg-white rounded-lg p-3 border border-pink-100">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-charcoal truncate">{f.title}</p>
+                                  <p className="text-xs text-charcoal-light">{f.vendor} &middot; ${f.price.toFixed(2)}</p>
+                                  {f.reason && (
+                                    <p className="text-xs text-pink-600 mt-1 italic">{f.reason}</p>
+                                  )}
+                                </div>
+                                <a
+                                  href={f.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex-shrink-0 px-2 py-1 bg-pink-500 text-white rounded-lg text-xs font-medium hover:bg-pink-600 transition-colors flex items-center gap-1"
+                                >
+                                  Order <ExternalLink size={10} />
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {flowerRecs.localShop && (
+                          <div className="bg-white rounded-lg p-3 border border-pink-100">
+                            <div className="flex items-center gap-2 mb-1">
+                              <MapPin size={14} className="text-pink-500" />
+                              <p className="font-medium text-sm text-charcoal">Local Option</p>
+                            </div>
+                            <p className="text-sm text-charcoal">{flowerRecs.localShop.name}</p>
+                            <p className="text-xs text-charcoal-light">{flowerRecs.localShop.address}</p>
+                            {flowerRecs.localShop.rating && (
+                              <p className="text-xs text-amber-600 mt-0.5">Rating: {flowerRecs.localShop.rating}/5</p>
+                            )}
+                            {flowerRecs.localShop.url && (
+                              <a
+                                href={flowerRecs.localShop.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-pink-600 hover:underline mt-1"
+                              >
+                                View on Google Maps <ExternalLink size={10} />
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-charcoal-light text-center py-2">No flower suggestions available.</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -387,16 +519,69 @@ export default function ContactDetailPage() {
               </button>
             </div>
           ) : (
-            <select
-              value=""
-              onChange={(e) => { if (e.target.value) handleSetSpouse(e.target.value); }}
-              className="w-full px-3 py-2 border border-cream-dark rounded-lg bg-cream/50 text-sm"
-            >
-              <option value="">Select a spouse...</option>
-              {spouseCandidates.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div className="space-y-2">
+              <select
+                value=""
+                onChange={(e) => { if (e.target.value) handleSetSpouse(e.target.value); }}
+                className="w-full px-3 py-2 border border-cream-dark rounded-lg bg-cream/50 text-sm"
+              >
+                <option value="">Link existing contact as spouse...</option>
+                {spouseCandidates.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+
+              {!showCreateSpouse ? (
+                <button
+                  onClick={() => { setShowCreateSpouse(true); setNewFamilyForm({ name: '', relationship: 'Wife', tonePreference: 'Sentimental' }); }}
+                  className="flex items-center gap-1.5 text-xs text-warmth-dark hover:text-warmth font-medium"
+                >
+                  <Plus size={14} /> Create new spouse
+                </button>
+              ) : (
+                <div className="bg-cream/50 rounded-xl p-3 space-y-2">
+                  <input
+                    value={newFamilyForm.name}
+                    onChange={(e) => setNewFamilyForm({ ...newFamilyForm, name: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-cream-dark rounded-lg text-sm bg-white"
+                    placeholder="Spouse's name"
+                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={newFamilyForm.relationship}
+                      onChange={(e) => setNewFamilyForm({ ...newFamilyForm, relationship: e.target.value })}
+                      className="flex-1 px-2 py-1.5 border border-cream-dark rounded-lg text-sm bg-white"
+                    >
+                      <option value="Wife">Wife</option>
+                      <option value="Husband">Husband</option>
+                      <option value="Spouse">Spouse</option>
+                    </select>
+                    <select
+                      value={newFamilyForm.tonePreference}
+                      onChange={(e) => setNewFamilyForm({ ...newFamilyForm, tonePreference: e.target.value })}
+                      className="flex-1 px-2 py-1.5 border border-cream-dark rounded-lg text-sm bg-white"
+                    >
+                      {TONES.map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleCreateFamily('spouse')}
+                      disabled={saving || !newFamilyForm.name.trim()}
+                      className="px-3 py-1.5 bg-warmth text-white rounded-lg text-sm font-medium hover:bg-warmth-dark transition-colors disabled:opacity-50"
+                    >
+                      {saving ? 'Creating...' : 'Create & Link'}
+                    </button>
+                    <button
+                      onClick={() => setShowCreateSpouse(false)}
+                      className="px-3 py-1.5 border border-cream-dark text-charcoal-light rounded-lg text-sm hover:bg-cream-dark/50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -404,12 +589,20 @@ export default function ContactDetailPage() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-charcoal">Children</h3>
-            <button
-              onClick={() => setShowChildPicker(!showChildPicker)}
-              className="flex items-center gap-1 text-xs text-warmth-dark hover:text-warmth font-medium"
-            >
-              <Plus size={14} /> Link Child
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowChildPicker(!showChildPicker)}
+                className="flex items-center gap-1 text-xs text-warmth-dark hover:text-warmth font-medium"
+              >
+                <Plus size={14} /> Link Existing
+              </button>
+              <button
+                onClick={() => { setShowCreateChild(true); setNewFamilyForm({ name: '', relationship: 'Child', tonePreference: 'Sentimental' }); }}
+                className="flex items-center gap-1 text-xs text-warmth-dark hover:text-warmth font-medium"
+              >
+                <Plus size={14} /> Add New
+              </button>
+            </div>
           </div>
 
           {showChildPicker && (
@@ -427,7 +620,51 @@ export default function ContactDetailPage() {
             </div>
           )}
 
-          {children.length === 0 ? (
+          {showCreateChild && (
+            <div className="bg-cream/50 rounded-xl p-3 mb-3 space-y-2">
+              <input
+                value={newFamilyForm.name}
+                onChange={(e) => setNewFamilyForm({ ...newFamilyForm, name: e.target.value })}
+                className="w-full px-2 py-1.5 border border-cream-dark rounded-lg text-sm bg-white"
+                placeholder="Child's name"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={newFamilyForm.relationship}
+                  onChange={(e) => setNewFamilyForm({ ...newFamilyForm, relationship: e.target.value })}
+                  className="flex-1 px-2 py-1.5 border border-cream-dark rounded-lg text-sm bg-white"
+                >
+                  <option value="Child">Child</option>
+                  <option value="Stepchild">Stepchild</option>
+                  <option value="Godchild">Godchild</option>
+                </select>
+                <select
+                  value={newFamilyForm.tonePreference}
+                  onChange={(e) => setNewFamilyForm({ ...newFamilyForm, tonePreference: e.target.value })}
+                  className="flex-1 px-2 py-1.5 border border-cream-dark rounded-lg text-sm bg-white"
+                >
+                  {TONES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCreateFamily('child')}
+                  disabled={saving || !newFamilyForm.name.trim()}
+                  className="px-3 py-1.5 bg-warmth text-white rounded-lg text-sm font-medium hover:bg-warmth-dark transition-colors disabled:opacity-50"
+                >
+                  {saving ? 'Creating...' : 'Create & Link'}
+                </button>
+                <button
+                  onClick={() => setShowCreateChild(false)}
+                  className="px-3 py-1.5 border border-cream-dark text-charcoal-light rounded-lg text-sm hover:bg-cream-dark/50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {children.length === 0 && !showCreateChild ? (
             <p className="text-charcoal-light text-sm py-2 text-center">No children linked.</p>
           ) : (
             <div className="space-y-1.5">

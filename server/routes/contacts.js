@@ -4,7 +4,7 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-const VALID_RELATIONSHIPS = ['Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent', 'Mother-in-Law', 'Father-in-Law', 'Brother-in-Law', 'Sister-in-Law', 'Son-in-Law', 'Daughter-in-Law', 'Cousin', 'Aunt', 'Uncle', 'Niece', 'Nephew', 'Godparent', 'Godchild', 'Stepparent', 'Stepchild', 'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Boss', 'Mentor', 'Other'];
+const VALID_RELATIONSHIPS = ['Myself', 'Wife', 'Husband', 'Mother', 'Father', 'Spouse', 'Sibling', 'Child', 'Grandparent', 'Mother-in-Law', 'Father-in-Law', 'Brother-in-Law', 'Sister-in-Law', 'Son-in-Law', 'Daughter-in-Law', 'Cousin', 'Aunt', 'Uncle', 'Niece', 'Nephew', 'Godparent', 'Godchild', 'Stepparent', 'Stepchild', 'Best Friend', 'Friend', 'Coworker', 'Neighbor', 'Boss', 'Mentor', 'Other'];
 const VALID_TONES = ['Funny', 'Sentimental', 'Religious', 'Kids', 'Edgy/Adult Humor'];
 const MAX_STRING_LENGTH = 500;
 
@@ -90,6 +90,21 @@ router.post('/', async (req, res, next) => {
       },
       include: { importantDates: true },
     });
+
+    // Auto-add Valentine's Day for Wife/Husband
+    if (['Wife', 'Husband'].includes(relationship)) {
+      const existingVDay = await prisma.importantDate.findFirst({
+        where: { contactId: contact.id, month: 2, day: 14 },
+      });
+      if (!existingVDay) {
+        await prisma.importantDate.create({
+          data: { contactId: contact.id, type: 'holiday', label: "Valentine's Day", month: 2, day: 14 },
+        });
+        // Re-fetch to include the new date
+        contact.importantDates = await prisma.importantDate.findMany({ where: { contactId: contact.id } });
+      }
+    }
+
     res.status(201).json({ contact });
   } catch (err) {
     next(err);
@@ -182,6 +197,19 @@ router.put('/:id', async (req, res, next) => {
       },
     });
 
+    // Auto-add Valentine's Day when relationship changes to Wife/Husband
+    if (relationship !== undefined && ['Wife', 'Husband'].includes(relationship)) {
+      const existingVDay = await prisma.importantDate.findFirst({
+        where: { contactId: contact.id, month: 2, day: 14 },
+      });
+      if (!existingVDay) {
+        await prisma.importantDate.create({
+          data: { contactId: contact.id, type: 'holiday', label: "Valentine's Day", month: 2, day: 14 },
+        });
+        contact.importantDates = await prisma.importantDate.findMany({ where: { contactId: contact.id } });
+      }
+    }
+
     contact.linkedSpouse = contact.spouse || contact.spouseOf || null;
     res.json({ contact });
   } catch (err) {
@@ -229,6 +257,80 @@ router.put('/:id/unlink-child', async (req, res, next) => {
     });
 
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/contacts/:id/create-family — Create a new contact and link as spouse or child
+router.post('/:id/create-family', async (req, res, next) => {
+  try {
+    const parent = await prisma.contact.findFirst({
+      where: { id: req.params.id, userId: req.userId },
+      include: { spouse: true, spouseOf: true },
+    });
+    if (!parent) return res.status(404).json({ error: 'Contact not found' });
+
+    const { name, relationship, tonePreference, linkType } = req.body;
+    if (!name || !relationship || !linkType) {
+      return res.status(400).json({ error: 'name, relationship, and linkType are required' });
+    }
+
+    // Create the new contact
+    const newContact = await prisma.contact.create({
+      data: {
+        userId: req.userId,
+        name,
+        relationship,
+        tonePreference: tonePreference || 'Sentimental',
+      },
+      include: { importantDates: true },
+    });
+
+    // Link based on linkType
+    if (linkType === 'spouse') {
+      // Clear existing spouse links on parent (both directions)
+      if (parent.spouseId) {
+        await prisma.contact.update({ where: { id: parent.spouseId }, data: { spouseId: null } });
+      }
+      if (parent.spouseOf) {
+        await prisma.contact.update({ where: { id: parent.spouseOf.id }, data: { spouseId: null } });
+      }
+      await prisma.contact.update({ where: { id: req.params.id }, data: { spouseId: null } });
+
+      // Set bidirectional spouse link: parent → newContact
+      await prisma.contact.update({
+        where: { id: req.params.id },
+        data: { spouseId: newContact.id },
+      });
+    } else if (linkType === 'child') {
+      // Set new contact's parentId to this contact
+      await prisma.contact.update({
+        where: { id: newContact.id },
+        data: { parentId: req.params.id },
+      });
+    }
+
+    // Auto-add Valentine's Day for Wife/Husband
+    if (['Wife', 'Husband'].includes(relationship)) {
+      await prisma.importantDate.create({
+        data: { contactId: newContact.id, type: 'holiday', label: "Valentine's Day", month: 2, day: 14 },
+      });
+    }
+
+    // Re-fetch full contact with relations
+    const fullContact = await prisma.contact.findFirst({
+      where: { id: newContact.id },
+      include: {
+        importantDates: true,
+        spouse: { select: { id: true, name: true } },
+        spouseOf: { select: { id: true, name: true } },
+        children: { select: { id: true, name: true } },
+        parent: { select: { id: true, name: true } },
+      },
+    });
+
+    res.status(201).json({ contact: fullContact });
   } catch (err) {
     next(err);
   }
