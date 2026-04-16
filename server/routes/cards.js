@@ -1,16 +1,42 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const { searchCards, CARD_CATALOG } = require('../services/cardCatalog');
+const { getItemsByAsins, isConfigured: paapiConfigured } = require('../services/paapi');
 
 const router = express.Router();
 
 router.use(authenticate);
 
+// Enrich catalog cards with live PA-API data (images, prices, availability)
+async function enrichCards(cards) {
+  if (!paapiConfigured() || cards.length === 0) return cards;
+
+  try {
+    const asins = cards.map((c) => c.asin).filter(Boolean);
+    const liveData = await getItemsByAsins(asins);
+
+    return cards.map((card) => {
+      const live = liveData[card.asin];
+      if (!live) return card;
+      return {
+        ...card,
+        imageUrl: live.imageUrl || card.imageUrl,
+        price: live.priceValue != null ? parseFloat(live.priceValue) : card.price,
+        availability: live.availability || undefined,
+      };
+    });
+  } catch (err) {
+    console.error('[Cards] PA-API enrichment failed, using catalog defaults:', err.message);
+    return cards;
+  }
+}
+
 // GET /api/cards/search?category=birthday&tone=Funny
 router.get('/search', async (req, res, next) => {
   try {
     const { category, tone } = req.query;
-    const cards = await searchCards({ category, tone });
+    let cards = await searchCards({ category, tone });
+    cards = await enrichCards(cards);
     res.json({ cards });
   } catch (err) {
     next(err);
@@ -76,7 +102,8 @@ Return ONLY a JSON array of objects with "id" (card id from catalog) and "reason
             .filter(Boolean);
 
           if (recommendations.length > 0) {
-            return res.json({ recommendations, aiPowered: true });
+            const enriched = await enrichCards(recommendations);
+            return res.json({ recommendations: enriched, aiPowered: true });
           }
         }
       } catch (aiErr) {
@@ -90,7 +117,8 @@ Return ONLY a JSON array of objects with "id" (card id from catalog) and "reason
     if (occasion) fallback = fallback.filter((c) => c.category === occasion.toLowerCase());
     if (tone) fallback = fallback.filter((c) => c.tone.toLowerCase() === tone.toLowerCase());
     if (fallback.length === 0) fallback = CARD_CATALOG.slice(0, 5);
-    const recommendations = fallback.slice(0, 5).map((c) => ({ ...c, reason: '' }));
+    let recommendations = fallback.slice(0, 5).map((c) => ({ ...c, reason: '' }));
+    recommendations = await enrichCards(recommendations);
 
     res.json({ recommendations, aiPowered: false });
   } catch (err) {
